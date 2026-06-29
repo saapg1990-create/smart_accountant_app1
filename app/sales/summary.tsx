@@ -16,8 +16,8 @@ export default function SalesSummaryScreen() {
       <View style={st.h}><TouchableOpacity onPress={()=>router.back()}><Text style={st.bt}>←</Text></TouchableOpacity><Text style={st.t}>ملخص المبيعات</Text><TouchableOpacity onPress={()=>Alert.alert('🖨️','جاري الطباعة')}><Text>🖨️</Text></TouchableOpacity></View>
       <View style={st.ct}>
         <View style={st.card}><Text style={st.lbl}>إجمالي المبيعات</Text><Text style={[st.val,{color:'#D4AF37'}]}>{totalSales.toLocaleString()} ﷼</Text></View>
-        <View style={st.card}><Text style={st.lbl}>مبيعات نقدي</Text><Text style={[st.val,{color:'#10B981'}]}>{totalCash.toLocaleString()} ﷼</Text></View>
-        <View style={st.card}><Text style={st.lbl}>مبيعات آجل</Text><Text style={[st.val,{color:'#F59E0B'}]}>{totalCredit.toLocaleString()} ﷼</Text></View>
+        <View style={st.card}><Text style={st.lbl}>نقدي</Text><Text style={[st.val,{color:'#10B981'}]}>{totalCash.toLocaleString()} ﷼</Text></View>
+        <View style={st.card}><Text style={st.lbl}>آجل</Text><Text style={[st.val,{color:'#F59E0B'}]}>{totalCredit.toLocaleString()} ﷼</Text></View>
         <View style={st.card}><Text style={st.lbl}>عدد الفواتير</Text><Text style={[st.val,{color:'#3B82F6'}]}>{invoices.length}</Text></View>
       </View>
     </View>

@@ -6,18 +6,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 export default function InventoryIndex() {
   const router = useRouter(); const insets = useSafeAreaInsets();
   const items = [
-    ["🏪","الموردين","/inventory/suppliers"],
-    ["🏭","المستودعات","/inventory/warehouses"],
-    ["📦","الأصناف","/inventory/items"],
-    ["📋","فاتورة مشتريات","/inventory/purchase-invoice"],
-    ["🔄","مردود مشتريات","/inventory/purchase-return"],
-    ["📤","صرف مخزون","/inventory/inventory-issue"],
-    ["📥","توريد مخزون","/inventory/inventory-receipt"],
-    ["🔄","تحويل مخزني","/inventory/warehouse-transfer"],
-    ["📐","وحدات القياس","/inventory/units"],
-    ["🏷️","الفئات","/inventory/categories"],
-    ["⭐","الماركات","/inventory/brands"],
-    ["📊","حركة الأصناف","/inventory/item-movement"],
+    ["🏪","الموردين","/inventory/suppliers"],["🏭","المستودعات","/inventory/warehouses"],
+    ["📦","الأصناف","/inventory/items"],["📋","فاتورة مشتريات","/inventory/purchase-invoice"],
+    ["🔄","مردود مشتريات","/inventory/purchase-return"],["📤","صرف مخزون","/inventory/inventory-issue"],
+    ["📥","توريد مخزون","/inventory/inventory-receipt"],["🔄","تحويل مخزني","/inventory/warehouse-transfer"],
+    ["📐","وحدات القياس","/inventory/units"],["🏷️","الفئات","/inventory/categories"],
+    ["⭐","الماركات","/inventory/brands"],["📊","حركة الأصناف","/inventory/item-movement"]
   ];
   return (
     <View style={st.c}><StatusBar barStyle="light-content"/><View style={[st.ct,{paddingTop:insets.top}]}>

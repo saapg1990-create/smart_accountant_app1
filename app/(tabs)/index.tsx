@@ -3,12 +3,13 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar } from 
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalTable } from '../../hooks/useLocalStore';
+import { useAccountStore } from '../../src/store/useAccountStore';
 
 export default function DashboardScreen() {
   const router = useRouter(); const insets = useSafeAreaInsets();
-  const { data: accounts } = useLocalTable('accounts');
   const { data: customers } = useLocalTable('customers');
   const { data: invoices } = useLocalTable('salesInvoices');
+  const { accounts } = useAccountStore();
   const totalSales = (invoices || []).reduce((s: number, i: any) => s + (i.total || 0), 0);
 
   return (
