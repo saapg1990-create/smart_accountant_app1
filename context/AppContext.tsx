@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAccountStore } from '../src/store/useAccountStore';
 import { initializeDefaultAccounts } from '../src/services/AccountInitializer';
+import { eventBus, EVENTS } from '../src/services/EventBus';
 
 interface AppContextType {
   isDark: boolean;
@@ -23,7 +24,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await loadAccounts();
   };
 
-  useEffect(() => { refreshAllData(); }, []);
+  useEffect(() => {
+    refreshAllData();
+    // الاستماع لأحداث التحديث العامة
+    const unsubscribe = eventBus.on(EVENTS.REFRESH_ALL, () => {
+      refreshAllData();
+    });
+    return unsubscribe;
+  }, []);
 
   return (
     <AppContext.Provider value={{ isDark, toggleDark, refreshAllData }}>
