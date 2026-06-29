@@ -1,0 +1,430 @@
+app/_layout.tsx(10,34): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/_layout.tsx(107,8): error TS2741: Property 'children' is missing in type '{}' but required in type '{ children: React.ReactNode; }'.
+app/_layout.tsx(108,10): error TS2741: Property 'children' is missing in type '{}' but required in type '{ children: React.ReactNode; }'.
+app/about.tsx(1,103): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/backup.tsx(1,103): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/dashboard.tsx(3,33): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/index.tsx(3,52): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/index.tsx(46,38): error TS7006: Parameter 'p' implicitly has an 'any' type.
+app/index.tsx(66,39): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: ViewProps): View', gave the following error.
+    Type '{ key: number; style: any[]; }' is not assignable to type 'ViewProps'.
+      Property 'key' does not exist on type 'ViewProps'.
+  Overload 2 of 2, '(props: ViewProps, context: any): View', gave the following error.
+    Type '{ key: number; style: any[]; }' is not assignable to type 'ViewProps'.
+      Property 'key' does not exist on type 'ViewProps'.
+app/index.tsx(73,21): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: ViewProps): View', gave the following error.
+    Type '{ key: number; style: { flexDirection: "row"; justifyContent: "space-around"; marginBottom: number; }; }' is not assignable to type 'ViewProps'.
+      Property 'key' does not exist on type 'ViewProps'.
+  Overload 2 of 2, '(props: ViewProps, context: any): View', gave the following error.
+    Type '{ key: number; style: { flexDirection: "row"; justifyContent: "space-around"; marginBottom: number; }; }' is not assignable to type 'ViewProps'.
+      Property 'key' does not exist on type 'ViewProps'.
+app/index.tsx(75,48): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: ViewProps): View', gave the following error.
+    Type '{ key: number; style: { width: number; height: number; }; }' is not assignable to type 'ViewProps'.
+      Property 'key' does not exist on type 'ViewProps'.
+  Overload 2 of 2, '(props: ViewProps, context: any): View', gave the following error.
+    Type '{ key: number; style: { width: number; height: number; }; }' is not assignable to type 'ViewProps'.
+      Property 'key' does not exist on type 'ViewProps'.
+app/inventory/brands.tsx(2,33): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/inventory/brands.tsx(20,8): error TS2741: Property 'children' is missing in type '{ visible: any; title: string; onClose: () => any; onSave: () => any; accentColor: string; }' but required in type 'Props'.
+app/inventory/brands.tsx(21,112): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/inventory/brands.tsx(22,113): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/inventory/categories.tsx(2,33): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/inventory/categories.tsx(20,8): error TS2741: Property 'children' is missing in type '{ visible: any; title: string; onClose: () => any; onSave: () => any; accentColor: string; }' but required in type 'Props'.
+app/inventory/categories.tsx(21,112): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/inventory/categories.tsx(22,113): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/inventory/cost-report.tsx(2,19): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/inventory/cost-report.tsx(13,42): error TS7006: Parameter 'i' implicitly has an 'any' type.
+app/inventory/expired.tsx(2,19): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/inventory/expired.tsx(14,37): error TS7006: Parameter 'i' implicitly has an 'any' type.
+app/inventory/expired.tsx(15,49): error TS7006: Parameter 'i' implicitly has an 'any' type.
+app/inventory/index.tsx(3,19): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/inventory/index.tsx(56,17): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: ViewProps): View', gave the following error.
+    Type '{ key: string; }' is not assignable to type 'ViewProps'.
+      Property 'key' does not exist on type 'ViewProps'.
+  Overload 2 of 2, '(props: ViewProps, context: any): View', gave the following error.
+    Type '{ key: string; }' is not assignable to type 'ViewProps'.
+      Property 'key' does not exist on type 'ViewProps'.
+app/inventory/inventory-issue.tsx(2,19): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/inventory/inventory-receipt.tsx(2,19): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/inventory/item-movement.tsx(2,19): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/inventory/items.tsx(3,53): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/inventory/items.tsx(70,8): error TS2741: Property 'children' is missing in type '{ visible: any; title: string; onClose: () => any; onSave: () => Promise<void>; accentColor: string; }' but required in type 'Props'.
+app/inventory/items.tsx(71,83): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/inventory/items.tsx(72,89): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/inventory/items.tsx(73,88): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/inventory/items.tsx(74,84): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/inventory/items.tsx(75,92): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/inventory/purchase-invoice.tsx(3,33): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/inventory/purchase-invoice.tsx(28,14): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+app/inventory/purchase-invoice.tsx(28,32): error TS7006: Parameter 'l' implicitly has an 'any' type.
+app/inventory/purchase-invoice.tsx(28,35): error TS7006: Parameter 'i' implicitly has an 'any' type.
+app/inventory/purchase-invoice.tsx(36,34): error TS7006: Parameter 's' implicitly has an 'any' type.
+app/inventory/purchase-invoice.tsx(36,37): error TS7006: Parameter 'l' implicitly has an 'any' type.
+app/inventory/purchase-invoice.tsx(37,39): error TS7006: Parameter 's' implicitly has an 'any' type.
+app/inventory/purchase-invoice.tsx(37,42): error TS7006: Parameter 'l' implicitly has an 'any' type.
+app/inventory/purchase-invoice.tsx(38,34): error TS7006: Parameter 's' implicitly has an 'any' type.
+app/inventory/purchase-invoice.tsx(38,37): error TS7006: Parameter 'l' implicitly has an 'any' type.
+app/inventory/purchase-invoice.tsx(43,37): error TS7006: Parameter 's' implicitly has an 'any' type.
+app/inventory/purchase-invoice.tsx(93,23): error TS7006: Parameter 'line' implicitly has an 'any' type.
+app/inventory/purchase-invoice.tsx(93,29): error TS7006: Parameter 'index' implicitly has an 'any' type.
+app/inventory/purchase-invoice.tsx(94,19): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: ViewProps): View', gave the following error.
+    Type '{ key: any; style: ({ borderRadius: number; borderWidth: number; padding: number; marginBottom: number; } | { backgroundColor: string; borderColor: string; })[]; }' is not assignable to type 'ViewProps'.
+      Property 'key' does not exist on type 'ViewProps'.
+  Overload 2 of 2, '(props: ViewProps, context: any): View', gave the following error.
+    Type '{ key: any; style: ({ borderRadius: number; borderWidth: number; padding: number; marginBottom: number; } | { backgroundColor: string; borderColor: string; })[]; }' is not assignable to type 'ViewProps'.
+      Property 'key' does not exist on type 'ViewProps'.
+app/inventory/purchase-invoice.tsx(97,79): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+app/inventory/purchase-invoice.tsx(97,100): error TS7006: Parameter '_' implicitly has an 'any' type.
+app/inventory/purchase-invoice.tsx(97,103): error TS7006: Parameter 'i' implicitly has an 'any' type.
+app/inventory/purchase-invoice.tsx(115,105): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+app/inventory/purchase-return.tsx(2,19): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/inventory/qty-report.tsx(3,19): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/inventory/qty-report.tsx(16,36): error TS7006: Parameter 's' implicitly has an 'any' type.
+app/inventory/qty-report.tsx(16,39): error TS7006: Parameter 'i' implicitly has an 'any' type.
+app/inventory/slow-moving.tsx(2,19): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/inventory/slow-moving.tsx(13,34): error TS7006: Parameter 'i' implicitly has an 'any' type.
+app/inventory/slow-moving.tsx(14,46): error TS7006: Parameter 'i' implicitly has an 'any' type.
+app/inventory/stock-adjustment.tsx(2,19): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/inventory/stock-count.tsx(3,19): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/inventory/supplier-movement.tsx(2,19): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/inventory/suppliers.tsx(3,53): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/inventory/suppliers.tsx(96,183): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/inventory/suppliers.tsx(98,180): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/inventory/suppliers.tsx(100,244): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/inventory/units.tsx(2,33): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/inventory/units.tsx(24,8): error TS2741: Property 'children' is missing in type '{ visible: any; title: string; onClose: () => any; onSave: () => any; accentColor: string; }' but required in type 'Props'.
+app/inventory/units.tsx(25,112): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/inventory/units.tsx(26,113): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/inventory/warehouse-transfer.tsx(2,19): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/inventory/warehouses.tsx(2,33): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/inventory/warehouses.tsx(22,8): error TS2741: Property 'children' is missing in type '{ visible: any; title: string; onClose: () => any; onSave: () => any; accentColor: string; }' but required in type 'Props'.
+app/inventory/warehouses.tsx(23,119): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/inventory/warehouses.tsx(24,120): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/inventory/warehouses.tsx(25,107): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/account-groups.tsx(3,53): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/ledger/account-groups.tsx(8,17): error TS2305: Module '"../../db/database"' has no exported member 'safeString'.
+app/ledger/account-groups.tsx(127,180): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/account-groups.tsx(129,182): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/account-groups.tsx(131,180): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/account-statement.tsx(3,33): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/ledger/account-statement.tsx(35,41): error TS7006: Parameter 'a' implicitly has an 'any' type.
+app/ledger/account-statement.tsx(55,35): error TS7006: Parameter 's' implicitly has an 'any' type.
+app/ledger/account-statement.tsx(55,38): error TS7006: Parameter 'r' implicitly has an 'any' type.
+app/ledger/account-statement.tsx(56,36): error TS7006: Parameter 's' implicitly has an 'any' type.
+app/ledger/account-statement.tsx(56,39): error TS7006: Parameter 'r' implicitly has an 'any' type.
+app/ledger/account-statement.tsx(87,30): error TS7006: Parameter 'a' implicitly has an 'any' type.
+app/ledger/account-statement.tsx(87,51): error TS7006: Parameter 'a' implicitly has an 'any' type.
+app/ledger/account-statement.tsx(157,24): error TS7006: Parameter 'row' implicitly has an 'any' type.
+app/ledger/account-statement.tsx(157,29): error TS7006: Parameter 'i' implicitly has an 'any' type.
+app/ledger/account-statement.tsx(163,19): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: ViewProps): View', gave the following error.
+    Type '{ key: any; style: ({ padding: number; borderTopWidth: number; gap: number; } | { borderTopColor: string; backgroundColor: string; flexDirection: "row" | "row-reverse"; })[]; }' is not assignable to type 'ViewProps'.
+      Property 'key' does not exist on type 'ViewProps'.
+  Overload 2 of 2, '(props: ViewProps, context: any): View', gave the following error.
+    Type '{ key: any; style: ({ padding: number; borderTopWidth: number; gap: number; } | { borderTopColor: string; backgroundColor: string; flexDirection: "row" | "row-reverse"; })[]; }' is not assignable to type 'ViewProps'.
+      Property 'key' does not exist on type 'ViewProps'.
+app/ledger/accounts.tsx(3,53): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/ledger/accounts.tsx(9,31): error TS2305: Module '"../../db/database"' has no exported member 'safeString'.
+app/ledger/accounts.tsx(148,182): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/accounts.tsx(153,154): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/accounts.tsx(163,157): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/accounts.tsx(171,237): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/accounts.tsx(174,193): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/bank-payment.tsx(3,44): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/ledger/bank-payment.tsx(65,150): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/bank-payment.tsx(75,98): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/bank-payment.tsx(89,206): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/bank-payment.tsx(92,169): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/bank-payment.tsx(95,155): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/bank-payment.tsx(105,68): error TS2820: Type '"payment-outline"' is not assignable to type '"journal" | "cash" | "receipt" | "code" | "location" | "push" | "map" | "filter" | "at" | "settings" | "language" | "pin" | "infinite" | "text" | "link" | "navigate" | "search" | ... 1339 more ... | "woman-sharp"'. Did you mean '"at-outline"'?
+app/ledger/bank-payment.tsx(131,121): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/bank-receipt.tsx(3,44): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/ledger/bank-receipt.tsx(65,150): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/bank-receipt.tsx(75,98): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/bank-receipt.tsx(89,206): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/bank-receipt.tsx(92,169): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/bank-receipt.tsx(95,155): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/bank-receipt.tsx(131,121): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/banks.tsx(3,53): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/ledger/banks.tsx(96,182): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/banks.tsx(98,180): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/banks.tsx(100,244): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/cash-boxes.tsx(3,53): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/ledger/cash-boxes.tsx(96,182): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/cash-boxes.tsx(98,180): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/cash-boxes.tsx(100,244): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/cash-payment.tsx(3,44): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/ledger/cash-payment.tsx(65,150): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/cash-payment.tsx(75,98): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/cash-payment.tsx(89,206): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/cash-payment.tsx(92,169): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/cash-payment.tsx(95,155): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/cash-payment.tsx(105,68): error TS2820: Type '"payment-outline"' is not assignable to type '"journal" | "cash" | "receipt" | "code" | "location" | "push" | "map" | "filter" | "at" | "settings" | "language" | "pin" | "infinite" | "text" | "link" | "navigate" | "search" | ... 1339 more ... | "woman-sharp"'. Did you mean '"at-outline"'?
+app/ledger/cash-payment.tsx(131,121): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/cash-receipt.tsx(3,44): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/ledger/cash-receipt.tsx(65,150): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/cash-receipt.tsx(75,98): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/cash-receipt.tsx(89,206): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/cash-receipt.tsx(92,169): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/cash-receipt.tsx(95,155): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/cash-receipt.tsx(131,121): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/chart-of-accounts.tsx(1,44): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/ledger/currencies.tsx(3,44): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/ledger/currencies.tsx(145,180): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/currencies.tsx(148,182): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/currencies.tsx(151,180): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/currencies.tsx(154,182): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/currencies.tsx(157,234): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/currencies.tsx(159,78): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/currency-reports.tsx(2,19): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/ledger/ewallets.tsx(3,53): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/ledger/ewallets.tsx(96,182): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/ewallets.tsx(98,180): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/ewallets.tsx(100,244): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/ledger/general-ledger.tsx(1,19): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/ledger/index.tsx(3,19): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/ledger/index.tsx(64,11): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: ViewProps): View', gave the following error.
+    Type '{ key: string; }' is not assignable to type 'ViewProps'.
+      Property 'key' does not exist on type 'ViewProps'.
+  Overload 2 of 2, '(props: ViewProps, context: any): View', gave the following error.
+    Type '{ key: string; }' is not assignable to type 'ViewProps'.
+      Property 'key' does not exist on type 'ViewProps'.
+app/ledger/journal-entry.tsx(1,33): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/ledger/recurring-journal.tsx(2,19): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/ledger/trial-balance.tsx(3,19): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/ledger/trial-balance.tsx(17,39): error TS7006: Parameter 'a' implicitly has an 'any' type.
+app/ledger/trial-balance.tsx(17,68): error TS7006: Parameter 's' implicitly has an 'any' type.
+app/ledger/trial-balance.tsx(17,71): error TS7006: Parameter 'a' implicitly has an 'any' type.
+app/ledger/trial-balance.tsx(18,40): error TS7006: Parameter 'a' implicitly has an 'any' type.
+app/ledger/trial-balance.tsx(18,68): error TS7006: Parameter 's' implicitly has an 'any' type.
+app/ledger/trial-balance.tsx(18,71): error TS7006: Parameter 'a' implicitly has an 'any' type.
+app/notifications.tsx(3,44): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/owner.tsx(3,44): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/owner.tsx(146,19): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: ViewProps): View', gave the following error.
+    Type '{ key: number; style: ({ width: "23%"; borderRadius: number; padding: number; alignItems: "center"; borderWidth: number; } | { backgroundColor: string; borderColor: string; })[]; }' is not assignable to type 'ViewProps'.
+      Property 'key' does not exist on type 'ViewProps'.
+  Overload 2 of 2, '(props: ViewProps, context: any): View', gave the following error.
+    Type '{ key: number; style: ({ width: "23%"; borderRadius: number; padding: number; alignItems: "center"; borderWidth: number; } | { backgroundColor: string; borderColor: string; })[]; }' is not assignable to type 'ViewProps'.
+      Property 'key' does not exist on type 'ViewProps'.
+app/reports/index.tsx(3,44): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/reports/sales-target.tsx(4,53): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/reports/sales-target.tsx(47,36): error TS7006: Parameter 't' implicitly has an 'any' type.
+app/reports/sales-target.tsx(76,32): error TS7006: Parameter 't' implicitly has an 'any' type.
+app/reports/sales-target.tsx(79,32): error TS7006: Parameter 'inv' implicitly has an 'any' type.
+app/reports/sales-target.tsx(83,32): error TS7006: Parameter 'inv' implicitly has an 'any' type.
+app/reports/sales-target.tsx(87,44): error TS7006: Parameter 's' implicitly has an 'any' type.
+app/reports/sales-target.tsx(87,47): error TS7006: Parameter 'inv' implicitly has an 'any' type.
+app/reports/sales-target.tsx(89,32): error TS7006: Parameter 'inv' implicitly has an 'any' type.
+app/reports/sales-target.tsx(90,32): error TS7006: Parameter 'inv' implicitly has an 'any' type.
+app/reports/sales-target.tsx(91,48): error TS7006: Parameter 's' implicitly has an 'any' type.
+app/reports/sales-target.tsx(91,51): error TS7006: Parameter 'inv' implicitly has an 'any' type.
+app/reports/sales-target.tsx(101,23): error TS7006: Parameter 'r' implicitly has an 'any' type.
+app/reports/sales-target.tsx(119,38): error TS7006: Parameter 'r' implicitly has an 'any' type.
+app/reports/sales-target.tsx(164,32): error TS7006: Parameter 'r' implicitly has an 'any' type.
+app/reports/sales-target.tsx(195,34): error TS7006: Parameter 'item' implicitly has an 'any' type.
+app/reports/sales-target.tsx(200,25): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: ViewProps): View', gave the following error.
+    Type '{ key: any; style: ({ borderRadius: number; borderWidth: number; padding: number; marginBottom: number; } | { backgroundColor: string; borderColor: string; })[]; }' is not assignable to type 'ViewProps'.
+      Property 'key' does not exist on type 'ViewProps'.
+  Overload 2 of 2, '(props: ViewProps, context: any): View', gave the following error.
+    Type '{ key: any; style: ({ borderRadius: number; borderWidth: number; padding: number; marginBottom: number; } | { backgroundColor: string; borderColor: string; })[]; }' is not assignable to type 'ViewProps'.
+      Property 'key' does not exist on type 'ViewProps'.
+app/sales/customer-groups.tsx(2,33): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/sales/customer-groups.tsx(20,8): error TS2741: Property 'children' is missing in type '{ visible: any; title: string; onClose: () => any; onSave: () => any; accentColor: string; }' but required in type 'Props'.
+app/sales/customer-groups.tsx(21,112): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/sales/customer-groups.tsx(22,113): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/sales/customer-sales.tsx(2,19): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/sales/customer-sales.tsx(13,46): error TS7006: Parameter 'c' implicitly has an 'any' type.
+app/sales/customer-sales.tsx(14,40): error TS7006: Parameter 'i' implicitly has an 'any' type.
+app/sales/customer-sales.tsx(14,76): error TS7006: Parameter 's' implicitly has an 'any' type.
+app/sales/customer-sales.tsx(14,79): error TS7006: Parameter 'i' implicitly has an 'any' type.
+app/sales/customers.tsx(3,53): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/sales/customers.tsx(96,183): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/sales/customers.tsx(98,180): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/sales/customers.tsx(100,244): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/sales/index.tsx(3,19): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/sales/index.tsx(47,17): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: ViewProps): View', gave the following error.
+    Type '{ key: string; }' is not assignable to type 'ViewProps'.
+      Property 'key' does not exist on type 'ViewProps'.
+  Overload 2 of 2, '(props: ViewProps, context: any): View', gave the following error.
+    Type '{ key: string; }' is not assignable to type 'ViewProps'.
+      Property 'key' does not exist on type 'ViewProps'.
+app/sales/item-sales.tsx(2,19): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/sales/item-sales.tsx(13,42): error TS7006: Parameter 'item' implicitly has an 'any' type.
+app/sales/item-sales.tsx(15,27): error TS7006: Parameter 'inv' implicitly has an 'any' type.
+app/sales/item-sales.tsx(16,25): error TS7006: Parameter 'line' implicitly has an 'any' type.
+app/sales/quotation.tsx(2,19): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/sales/rep-performance.tsx(2,19): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/sales/reps.tsx(2,33): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/sales/reps.tsx(19,46): error TS7006: Parameter 'r' implicitly has an 'any' type.
+app/sales/reps.tsx(32,30): error TS7006: Parameter 'r' implicitly has an 'any' type.
+app/sales/reps.tsx(53,8): error TS2741: Property 'children' is missing in type '{ visible: any; title: string; onClose: () => any; onSave: () => Promise<void>; accentColor: string; }' but required in type 'Props'.
+app/sales/reps.tsx(54,112): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/sales/reps.tsx(55,113): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/sales/reps.tsx(56,101): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/sales/reps.tsx(57,120): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/sales/reps.tsx(58,118): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/sales/reps.tsx(59,129): error TS7006: Parameter 'f' implicitly has an 'any' type.
+app/sales/sales-invoice.tsx(3,33): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/sales/sales-invoice.tsx(28,14): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+app/sales/sales-invoice.tsx(28,32): error TS7006: Parameter 'l' implicitly has an 'any' type.
+app/sales/sales-invoice.tsx(28,35): error TS7006: Parameter 'i' implicitly has an 'any' type.
+app/sales/sales-invoice.tsx(36,34): error TS7006: Parameter 's' implicitly has an 'any' type.
+app/sales/sales-invoice.tsx(36,37): error TS7006: Parameter 'l' implicitly has an 'any' type.
+app/sales/sales-invoice.tsx(37,39): error TS7006: Parameter 's' implicitly has an 'any' type.
+app/sales/sales-invoice.tsx(37,42): error TS7006: Parameter 'l' implicitly has an 'any' type.
+app/sales/sales-invoice.tsx(38,34): error TS7006: Parameter 's' implicitly has an 'any' type.
+app/sales/sales-invoice.tsx(38,37): error TS7006: Parameter 'l' implicitly has an 'any' type.
+app/sales/sales-invoice.tsx(45,35): error TS7006: Parameter 'i' implicitly has an 'any' type.
+app/sales/sales-invoice.tsx(51,37): error TS7006: Parameter 'c' implicitly has an 'any' type.
+app/sales/sales-invoice.tsx(100,23): error TS7006: Parameter 'line' implicitly has an 'any' type.
+app/sales/sales-invoice.tsx(100,29): error TS7006: Parameter 'index' implicitly has an 'any' type.
+app/sales/sales-invoice.tsx(101,19): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: ViewProps): View', gave the following error.
+    Type '{ key: any; style: ({ borderRadius: number; borderWidth: number; padding: number; marginBottom: number; } | { backgroundColor: string; borderColor: string; })[]; }' is not assignable to type 'ViewProps'.
+      Property 'key' does not exist on type 'ViewProps'.
+  Overload 2 of 2, '(props: ViewProps, context: any): View', gave the following error.
+    Type '{ key: any; style: ({ borderRadius: number; borderWidth: number; padding: number; marginBottom: number; } | { backgroundColor: string; borderColor: string; })[]; }' is not assignable to type 'ViewProps'.
+      Property 'key' does not exist on type 'ViewProps'.
+app/sales/sales-invoice.tsx(104,79): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+app/sales/sales-invoice.tsx(104,100): error TS7006: Parameter '_' implicitly has an 'any' type.
+app/sales/sales-invoice.tsx(104,103): error TS7006: Parameter 'i' implicitly has an 'any' type.
+app/sales/sales-invoice.tsx(121,105): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+app/sales/sales-return.tsx(2,19): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/sales/summary.tsx(3,19): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/sales/summary.tsx(17,44): error TS7006: Parameter 's' implicitly has an 'any' type.
+app/sales/summary.tsx(17,47): error TS7006: Parameter 'i' implicitly has an 'any' type.
+app/sales/summary.tsx(18,43): error TS7006: Parameter 's' implicitly has an 'any' type.
+app/sales/summary.tsx(18,46): error TS7006: Parameter 'i' implicitly has an 'any' type.
+app/sales/summary.tsx(19,48): error TS7006: Parameter 's' implicitly has an 'any' type.
+app/sales/summary.tsx(19,51): error TS7006: Parameter 'i' implicitly has an 'any' type.
+app/sales/summary.tsx(20,42): error TS7006: Parameter 'i' implicitly has an 'any' type.
+app/sales/summary.tsx(20,81): error TS7006: Parameter 's' implicitly has an 'any' type.
+app/sales/summary.tsx(20,84): error TS7006: Parameter 'i' implicitly has an 'any' type.
+app/sales/summary.tsx(21,44): error TS7006: Parameter 'i' implicitly has an 'any' type.
+app/sales/summary.tsx(21,85): error TS7006: Parameter 's' implicitly has an 'any' type.
+app/sales/summary.tsx(21,88): error TS7006: Parameter 'i' implicitly has an 'any' type.
+app/sales/summary.tsx(38,19): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: ViewProps): View', gave the following error.
+    Type '{ key: number; style: ({ width: "47%"; borderRadius: number; borderWidth: number; padding: number; alignItems: "center"; gap: number; } | { backgroundColor: string; borderColor: string; })[]; }' is not assignable to type 'ViewProps'.
+      Property 'key' does not exist on type 'ViewProps'.
+  Overload 2 of 2, '(props: ViewProps, context: any): View', gave the following error.
+    Type '{ key: number; style: ({ width: "47%"; borderRadius: number; borderWidth: number; padding: number; alignItems: "center"; gap: number; } | { backgroundColor: string; borderColor: string; })[]; }' is not assignable to type 'ViewProps'.
+      Property 'key' does not exist on type 'ViewProps'.
+app/settings.tsx(3,44): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/settings.tsx(112,196): error TS7006: Parameter 'p' implicitly has an 'any' type.
+app/settings.tsx(114,197): error TS7006: Parameter 'p' implicitly has an 'any' type.
+app/settings.tsx(116,197): error TS7006: Parameter 'p' implicitly has an 'any' type.
+app/voice.tsx(3,41): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+app/voice.tsx(178,18): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+app/voice.tsx(232,26): error TS7006: Parameter 'cmd' implicitly has an 'any' type.
+app/voice.tsx(232,31): error TS7006: Parameter 'i' implicitly has an 'any' type.
+components/AppDrawer.tsx(4,33): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+components/AppDrawer.tsx(156,17): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(props: ViewProps): View', gave the following error.
+    Type '{ key: string; }' is not assignable to type 'ViewProps'.
+      Property 'key' does not exist on type 'ViewProps'.
+  Overload 2 of 2, '(props: ViewProps, context: any): View', gave the following error.
+    Type '{ key: string; }' is not assignable to type 'ViewProps'.
+      Property 'key' does not exist on type 'ViewProps'.
+components/ErrorBoundary.tsx(1,68): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+components/ErrorBoundary.tsx(33,21): error TS2339: Property 'props' does not exist on type 'ErrorBoundary'.
+components/ErrorBoundary.tsx(34,12): error TS2339: Property 'props' does not exist on type 'ErrorBoundary'.
+components/ErrorBoundary.tsx(39,10): error TS2339: Property 'setState' does not exist on type 'ErrorBoundary'.
+components/ErrorBoundary.tsx(43,40): error TS2339: Property 'props' does not exist on type 'ErrorBoundary'.
+components/ErrorBoundary.tsx(51,12): error TS2339: Property 'props' does not exist on type 'ErrorBoundary'.
+components/ErrorFallback.tsx(3,33): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+components/FormField.tsx(1,19): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+components/FormModal.tsx(2,19): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+components/Layout.tsx(1,19): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+components/ListScreen.tsx(3,33): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+components/SectionCard.tsx(3,19): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+components/StatCard.tsx(2,19): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+context/AppContext.tsx(2,84): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+context/AppContext.tsx(174,13): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ ar: { appName: string; login: { title: string; subtitle: string; pinPlaceholder: string; loginBtn: string; fingerprint: string; wrongPin: string; developer: string; }; dashboard: { title: string; welcome: string; }; common: { ...; }; settings: { ...; }; }; en: { ...; }; }'.
+context/DatabaseContext.tsx(1,92): error TS7016: Could not find a declaration file for module 'react'. '/workspaces/smart_accountant_app/smart_accountant-main/node_modules/.pnpm/react@19.1.0/node_modules/react/index.js' implicitly has an 'any' type.
+  If the 'react' package actually exposes this module, consider sending a pull request to amend 'https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react'
+context/DatabaseContext.tsx(310,22): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+context/DatabaseContext.tsx(310,39): error TS7006: Parameter 'n' implicitly has an 'any' type.
+context/DatabaseContext.tsx(315,22): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+context/DatabaseContext.tsx(315,39): error TS7006: Parameter 'n' implicitly has an 'any' type.
+context/DatabaseContext.tsx(318,65): error TS7006: Parameter 'n' implicitly has an 'any' type.
+db/repositories.ts(2,17): error TS2305: Module '"./database"' has no exported member 'nextSequence'.

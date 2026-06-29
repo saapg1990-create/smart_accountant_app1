@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "دفتر المحاسب الذكي",
+    "slug": "smart-accountant",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "backgroundColor": "#0A1128"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.smartaccountant.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0A1128"
+      },
+      "package": "com.smartaccountant.app"
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}

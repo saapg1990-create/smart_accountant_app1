@@ -1,0 +1,26 @@
+{
+  "extends": "expo/tsconfig.base",
+  "extends": "./tsconfig.paths.json",
+  "compilerOptions": {
+    "incremental": true,
+    "tsBuildInfoFile": ".tsbuildinfo",
+    "baseUrl": ".",
+    "strict": true,
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+  ],
+  "references": [
+    {
+      "path": "../../lib/api-client-react"
+    }
+  ]
+}

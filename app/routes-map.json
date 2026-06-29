@@ -1,0 +1,5 @@
+{
+  "ledger": ["/ledger/accounts", "/ledger/journal-entry", "/ledger/cash-receipt"],
+  "inventory": ["/inventory/suppliers", "/inventory/items", "/inventory/purchase-invoice"],
+  "sales": ["/sales/customers", "/sales/sales-invoice", "/sales/quotation"]
+}

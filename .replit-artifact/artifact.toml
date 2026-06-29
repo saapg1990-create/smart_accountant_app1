@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/"
+title = "دفتر المحاسب الذكي"
+version = "1.0.0"
+id = "artifacts/smart-accountant"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/" ]
+localPort = 18681
+
+[services.development]
+run = "pnpm --filter @workspace/smart-accountant run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/smart-accountant", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/smart-accountant", "run", "serve" ]
+
+[services.env]
+PORT = "18681"
+BASE_PATH = "/"

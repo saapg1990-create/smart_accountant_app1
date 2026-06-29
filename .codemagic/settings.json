@@ -1,0 +1,17 @@
+{
+  "project_name": "دفتر المحاسب الذكي",
+  "project_id": "smart-accountant",
+  "version": "1.0.0",
+  "build_number": 1,
+  "platforms": ["android", "ios"],
+  "build_type": "production",
+  "auto_publish": true,
+  "notifications": {
+    "email": ["saddam@smartaccountant.com"],
+    "slack": null
+  },
+  "environment_variables": {
+    "EXPO_TOKEN": "your-expo-token-here",
+    "NODE_ENV": "production"
+  }
+}
