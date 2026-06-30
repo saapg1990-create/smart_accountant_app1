@@ -12,7 +12,6 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
       try {
         const database = await SQLite.openDatabaseAsync('accounting.db');
         await createTables(database);
-        await seedDefaultData(database);
         setDb(database);
       } catch (e) {
         console.error('Database init error:', e);
@@ -40,10 +39,6 @@ async function createTables(db: SQLite.SQLiteDatabase) {
       id TEXT PRIMARY KEY, code TEXT UNIQUE, name TEXT NOT NULL, type TEXT,
       parentId TEXT DEFAULT '', currency TEXT DEFAULT 'YER',
       balance REAL DEFAULT 0, isActive INTEGER DEFAULT 1,
-      createdAt TEXT DEFAULT (datetime('now'))
-    );
-    CREATE TABLE IF NOT EXISTS account_groups (
-      id TEXT PRIMARY KEY, name TEXT NOT NULL, type TEXT,
       createdAt TEXT DEFAULT (datetime('now'))
     );
     CREATE TABLE IF NOT EXISTS cash_boxes (
@@ -155,7 +150,7 @@ async function createTables(db: SQLite.SQLiteDatabase) {
   `);
 }
 
-async function seedDefaultData(db: SQLite.SQLiteDatabase) {
+export async function seedDefaultData(db: SQLite.SQLiteDatabase) {
   try {
     const currencies = await db.getAllAsync('SELECT * FROM currencies');
     if (currencies.length === 0) {
@@ -173,6 +168,6 @@ async function seedDefaultData(db: SQLite.SQLiteDatabase) {
       await db.runAsync("INSERT INTO units (id, name) VALUES (?,?)", ['u5','متر']);
     }
   } catch (e) {
-    console.log('Seed data error:', e);
+    console.log('Seed data error (قد تحتاج صلاحيات):', e);
   }
 }

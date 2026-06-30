@@ -1,40 +1,31 @@
-import { ControlButtons, ControlHeader } from '../../src/components/ui/ControlButtons';
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, StatusBar, Alert, Modal } from 'react-native';
-import { useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLocalTable } from '../../hooks/useLocalStore';
+import { useDatabase } from '../../context/DatabaseContext';
 
 export default function BrandsScreen() {
   const router = useRouter(); const insets = useSafeAreaInsets();
-  const { data: brands, add, remove } = useLocalTable('brands');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showModal, setShowModal] = useState(false);
-  const [newName, setNewName] = useState('');
-  const filtered = (brands||[]).filter((b:any) => (b.name||'').includes(searchQuery));
+  const { db } = useDatabase();
+  const [data, setData] = useState<any[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [name, setName] = useState('');
 
-  const handleAdd = async () => {
-    if (!newName.trim()) { Alert.alert('خطأ', 'أدخل اسم الماركة'); return; }
-    await add({ name: newName }); setNewName(''); setShowModal(false);
-  };
+  useFocusEffect(useCallback(() => { loadData(); }, [db]));
+  const loadData = async () => { if (!db) return; const r = await db.getAllAsync('SELECT * FROM brands ORDER BY name'); setData(r); };
+  const addData = async () => { if (!name.trim()) return Alert.alert('خطأ', 'أدخل الاسم'); const id = 'br' + Date.now(); await db.runAsync('INSERT INTO brands (id, name) VALUES (?,?)', [id, name]); await loadData(); setName(''); setShowForm(false); };
+  const deleteData = async (id: string) => { Alert.alert('تأكيد', 'حذف؟', [{ text: 'إلغاء' }, { text: 'حذف', onPress: async () => { await db.runAsync('DELETE FROM brands WHERE id=?', [id]); await loadData(); } }]); };
 
   return (
-    <View style={[st.c,{paddingTop:insets.top}]}><StatusBar barStyle="light-content"/>
-      <View style={st.h}><TouchableOpacity onPress={()=>router.back()} style={st.b}><Text style={st.bt}>←</Text></TouchableOpacity><Text style={st.t}>⭐ الماركات ({brands.length})</Text><TouchableOpacity style={st.ab} onPress={()=>setShowModal(true)}><Text style={st.at}>+</Text></TouchableOpacity></View>
-      <TextInput style={st.si} placeholder="🔍 بحث..." placeholderTextColor="#94a3b8" value={searchQuery} onChangeText={setSearchQuery}/>
-      {filtered.length===0?<View style={st.e}><Text style={st.ei}>⭐</Text><Text style={st.et}>لا توجد ماركات</Text></View>:
-        <FlatList data={filtered} keyExtractor={(i:any)=>i.id} renderItem={({item}:any)=>(
-          <TouchableOpacity style={st.rc} onLongPress={()=>Alert.alert('حذف',`حذف "${item.name}"؟`,[{text:'حذف',style:'destructive',onPress:()=>remove(item.id)},{text:'إلغاء'}])}>
-            <Text style={st.rn}>⭐ {item.name}</Text>
-          </TouchableOpacity>
-        )} contentContainerStyle={{padding:16}}/>
-      }
-      <Modal visible={showModal} animationType="slide" transparent>
-        <View style={st.mo}><View style={st.mc}><View style={st.mh}><Text style={st.mt}>إضافة ماركة</Text><TouchableOpacity onPress={()=>setShowModal(false)}><Text style={st.mx}>✕</Text></TouchableOpacity></View>
-          <View style={st.mb}><Text style={st.fl}>اسم الماركة</Text><TextInput style={st.fi} value={newName} onChangeText={setNewName} placeholder="اسم الماركة" placeholderTextColor="#666"/><TouchableOpacity style={st.sb} onPress={handleAdd}><Text style={st.sbt}>💾 حفظ</Text></TouchableOpacity></View>
-        </View></View>
-      </Modal>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={styles.header}><TouchableOpacity onPress={() => router.back()}><Text style={styles.backBtn}>← رجوع</Text></TouchableOpacity><Text style={styles.title}>العلامات التجارية</Text><TouchableOpacity onPress={() => setShowForm(!showForm)}><Text style={styles.addBtn}>+ إضافة</Text></TouchableOpacity></View>
+      {showForm && (<View style={styles.form}><Text style={styles.label}>اسم العلامة</Text><TextInput style={styles.input} value={name} onChangeText={setName} /><TouchableOpacity style={styles.saveBtn} onPress={addData}><Text style={styles.saveBtnText}>حفظ</Text></TouchableOpacity></View>)}
+      <FlatList data={data} keyExtractor={i => i.id} renderItem={({ item }) => (<View style={styles.card}><Text style={styles.cardName}>{item.name}</Text><TouchableOpacity onPress={() => deleteData(item.id)}><Text style={styles.deleteBtn}>🗑️</Text></TouchableOpacity></View>)} ListEmptyComponent={<Text style={styles.empty}>لا توجد علامات</Text>} />
     </View>
   );
 }
-const st=StyleSheet.create({c:{flex:1,backgroundColor:'#0A1128'},h:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',paddingHorizontal:16,paddingVertical:12},b:{width:36,height:36,borderRadius:18,backgroundColor:'#16213E',justifyContent:'center',alignItems:'center',borderWidth:1,borderColor:'#2a3550'},bt:{fontSize:20,color:'#D4AF37'},t:{fontSize:18,fontWeight:'bold',color:'#FFF'},ab:{width:36,height:36,borderRadius:18,backgroundColor:'#D4AF37'+'20',justifyContent:'center',alignItems:'center',borderWidth:1,borderColor:'#D4AF37'},at:{fontSize:20,color:'#D4AF37',fontWeight:'bold'},si:{marginHorizontal:16,marginBottom:12,padding:12,backgroundColor:'#16213E',borderRadius:10,color:'#FFF',borderWidth:1,borderColor:'#2a3550',textAlign:'right',fontSize:14},e:{flex:1,justifyContent:'center',alignItems:'center'},ei:{fontSize:48,marginBottom:12},et:{color:'#FFF',fontSize:16},rc:{backgroundColor:'#16213E',borderRadius:12,padding:14,marginBottom:8,marginHorizontal:16,borderWidth:1,borderColor:'#2a3550'},rn:{color:'#FFF',fontSize:14,fontWeight:'bold'},mo:{flex:1,backgroundColor:'rgba(0,0,0,0.7)',justifyContent:'flex-end'},mc:{backgroundColor:'#16213E',borderTopLeftRadius:20,borderTopRightRadius:20},mh:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',padding:16,borderBottomWidth:1,borderBottomColor:'#2a3550'},mt:{color:'#D4AF37',fontSize:18,fontWeight:'bold'},mx:{color:'#EF4444',fontSize:22,fontWeight:'bold'},mb:{padding:16},fl:{color:'#94a3b8',fontSize:13,marginBottom:6,marginTop:12},fi:{backgroundColor:'#0A1128',borderRadius:10,padding:12,color:'#FFF',borderWidth:1,borderColor:'#2a3550',fontSize:14},sb:{backgroundColor:'#D4AF37',borderRadius:12,padding:14,alignItems:'center',marginTop:20},sbt:{color:'#0A1128',fontSize:16,fontWeight:'bold'}});
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#0a0f1e' }, header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: '#1a2540' }, backBtn: { color: '#D4AF37', fontSize: 16 }, title: { color: '#D4AF37', fontSize: 22, fontWeight: 'bold' }, addBtn: { color: '#D4AF37', fontSize: 16, fontWeight: 'bold' },
+  form: { padding: 16, backgroundColor: '#16213E', margin: 12, borderRadius: 12 }, label: { color: '#9A9B3B', fontSize: 14, marginTop: 8 }, input: { backgroundColor: '#0a0f1e', color: '#fff', padding: 10, borderRadius: 8, marginBottom: 6, textAlign: 'right' }, saveBtn: { backgroundColor: '#D4AF37', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 12 }, saveBtnText: { color: '#000', fontWeight: 'bold', fontSize: 16 },
+  card: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#16213E', padding: 14, marginHorizontal: 12, marginVertical: 5, borderRadius: 12 }, cardName: { color: '#fff', fontSize: 16, fontWeight: 'bold' }, deleteBtn: { fontSize: 22, padding: 8 }, empty: { color: '#666', textAlign: 'center', marginTop: 40, fontSize: 16 },
+});
