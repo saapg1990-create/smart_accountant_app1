@@ -13,7 +13,7 @@ export default function AccountsScreen() {
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ name: '', code: '', type: 'أصل', balance: '0', parentId: '', currency: 'YER' });
+  const [formData, setFormData] = useState({ name: '', code: '', type: 'أصل', balance: '0', parentId: '' });
   const [parentName, setParentName] = useState('');
   const types = ['أصل', 'خصم', 'إيراد', 'مصروف', 'ملكية'];
 
@@ -23,14 +23,14 @@ export default function AccountsScreen() {
 
   const openAdd = (parentId: string = '', parentName: string = '') => {
     setEditMode(false); setSelectedId(null);
-    setFormData({ name: '', code: '', type: 'أصل', balance: '0', parentId, currency: 'YER' });
+    setFormData({ name: '', code: '', type: 'أصل', balance: '0', parentId });
     setParentName(parentName);
     setShowModal(true);
   };
 
   const openEdit = (account: any) => {
     setEditMode(true); setSelectedId(account.id);
-    setFormData({ name: account.name, code: account.code, type: account.type, balance: String(account.balance || 0), parentId: account.parentId || '', currency: account.currency || 'YER' });
+    setFormData({ name: account.name, code: account.code, type: account.type, balance: String(account.balance || 0), parentId: account.parentId || '' });
     const parent = accounts.find((a: any) => a.id === account.parentId);
     setParentName(parent ? parent.name : '');
     setShowModal(true);
@@ -59,9 +59,28 @@ export default function AccountsScreen() {
     setShowModal(false);
   };
 
+  const getIcon = (name: string) => {
+    if (name.includes('أصول')) return '🏢';
+    if (name.includes('خصوم')) return '💳';
+    if (name.includes('ملكية')) return '👑';
+    if (name.includes('إيراد')) return '💰';
+    if (name.includes('مصروف')) return '💸';
+    if (name.includes('صندوق')) return '💵';
+    if (name.includes('بنك')) return '🏦';
+    if (name.includes('عملاء')) return '👥';
+    if (name.includes('مخزون')) return '📦';
+    if (name.includes('مورد')) return '🏭';
+    if (name.includes('ضريبة')) return '🧾';
+    if (name.includes('رأس مال')) return '🏛️';
+    if (name.includes('مبيع')) return '🛒';
+    if (name.includes('مشتري')) return '📥';
+    if (name.includes('رواتب')) return '👷';
+    if (name.includes('إيجار')) return '🏠';
+    return '📋';
+  };
+
   const getTypeColor = (t: string) => ({ 'أصل': '#D4AF37', 'خصم': '#EF4444', 'إيراد': '#10B981', 'مصروف': '#3B82F6', 'ملكية': '#F59E0B' }[t] || '#6B7280');
 
-  // بناء قائمة عرض: الرئيسية + الفرعية
   const displayList: any[] = [];
   mainAccounts.forEach((main: any) => {
     const matchMain = !searchQuery || main.name.includes(searchQuery) || main.code.includes(searchQuery);
@@ -80,27 +99,33 @@ export default function AccountsScreen() {
       
       <View style={st.info}><Text style={st.infoText}>🏗️ الرئيسية للتجميع | 📋 الفرعية للترحيل والعمليات</Text></View>
 
-      {loading ? <Text style={st.loading}>جاري التحميل...</Text> :
+      {loading ? <Text style={st.loading}>⏳ جاري التحميل...</Text> :
         <FlatList data={displayList} keyExtractor={(i, idx) => i.data.id + idx}
           renderItem={({ item }) => {
             if (item.type === 'main' && item.show) {
               const main = item.data;
               const subsCount = getSubAccounts(main.id).length;
+              const totalBalance = getSubAccounts(main.id).reduce((s: number, sub: any) => s + (sub.balance || 0), 0);
               return (
-                <TouchableOpacity style={[st.mainCard, { borderRightColor: getTypeColor(main.type), borderRightWidth: 4 }]} 
+                <TouchableOpacity style={[st.mainCard, { borderRightColor: getTypeColor(main.type), borderRightWidth: 5 }]} 
                   onPress={() => openEdit(main)} onLongPress={() => handleDelete(main)}>
                   <View style={st.row1}>
-                    <Text style={st.code}>{main.code}</Text>
+                    <Text style={st.icon}>{getIcon(main.name)}</Text>
+                    <View style={{ flex: 1, marginLeft: 10 }}>
+                      <Text style={st.name}>{main.name}</Text>
+                      <Text style={st.code}>{main.code}</Text>
+                    </View>
                     <View style={[st.badge, { backgroundColor: getTypeColor(main.type) + '20' }]}>
                       <Text style={[st.badgeText, { color: getTypeColor(main.type) }]}>{main.type}</Text>
                     </View>
                   </View>
-                  <Text style={st.name}>📁 {main.name}</Text>
                   <View style={st.row2}>
-                    <Text style={st.balance}>{main.balance?.toLocaleString()} ﷼</Text>
-                    <View style={{ flexDirection: 'row', gap: 8 }}>
-                      <Text style={st.count}>{subsCount} فرعي</Text>
-                      <TouchableOpacity style={st.addSub} onPress={() => openAdd(main.id, main.name)}><Text style={st.addSubText}>+</Text></TouchableOpacity>
+                    <Text style={st.balance}>المجموع: {totalBalance.toLocaleString()} ﷼</Text>
+                    <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+                      <Text style={st.count}>{subsCount} حساب فرعي</Text>
+                      <TouchableOpacity style={st.addSub} onPress={() => openAdd(main.id, main.name)}>
+                        <Text style={st.addSubText}>+</Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -109,26 +134,38 @@ export default function AccountsScreen() {
             if (item.type === 'sub') {
               const sub = item.data;
               return (
-                <TouchableOpacity key={sub.id} style={[st.subCard, { borderRightColor: getTypeColor(sub.type), borderRightWidth: 3 }]}
+                <TouchableOpacity key={sub.id} style={st.subCard}
                   onPress={() => openEdit(sub)} onLongPress={() => handleDelete(sub)}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <Text style={st.code}>└ {sub.code}</Text>
-                    <Text style={st.parentLabel}>تحت: {item.parentName}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={st.subIcon}>{getIcon(sub.name)}</Text>
+                    <View style={{ flex: 1, marginLeft: 8 }}>
+                      <Text style={st.subName}>{sub.name}</Text>
+                      <Text style={st.subCode}>{sub.code}</Text>
+                    </View>
+                    <Text style={[st.subBalance, { color: sub.balance >= 0 ? '#10B981' : '#EF4444' }]}>
+                      {sub.balance?.toLocaleString()} ﷼
+                    </Text>
                   </View>
-                  <Text style={st.subName}>{sub.name}</Text>
-                  <Text style={st.subBalance}>الرصيد: {sub.balance?.toLocaleString()} ﷼</Text>
                 </TouchableOpacity>
               );
             }
             return null;
           }}
-          ListEmptyComponent={<Text style={st.empty}>لا توجد حسابات. اضغط + لإضافة حساب رئيسي</Text>}
+          ListEmptyComponent={
+            <View style={st.emptyView}>
+              <Text style={st.emptyIcon}>📚</Text>
+              <Text style={st.empty}>لا توجد حسابات</Text>
+              <TouchableOpacity style={st.emptyBtn} onPress={() => openAdd()}>
+                <Text style={st.emptyBtnText}>+ إضافة حساب رئيسي</Text>
+              </TouchableOpacity>
+            </View>
+          }
           contentContainerStyle={{ padding: 16 }}
         />
       }
 
       <Modal visible={showModal} animationType="slide" transparent>
-        <View style={st.mo}><View style={st.mc}><View style={st.mh}><Text style={st.mt}>{editMode ? 'تعديل حساب' : parentName ? `➕ فرعي تحت: ${parentName}` : '📁 حساب رئيسي جديد'}</Text><TouchableOpacity onPress={() => setShowModal(false)}><Text style={st.mx}>✕</Text></TouchableOpacity></View>
+        <View style={st.mo}><View style={st.mc}><View style={st.mh}><Text style={st.mt}>{editMode ? '✏️ تعديل حساب' : parentName ? `➕ فرعي تحت: ${parentName}` : '📁 حساب رئيسي جديد'}</Text><TouchableOpacity onPress={() => setShowModal(false)}><Text style={st.mx}>✕</Text></TouchableOpacity></View>
         <ScrollView style={st.mb}>
           <Text style={st.fl}>اسم الحساب *</Text><TextInput style={st.fi} value={formData.name} onChangeText={v => setFormData({ ...formData, name: v })} placeholder="اسم الحساب" placeholderTextColor="#666" />
           <Text style={st.fl}>الكود (تلقائي)</Text><TextInput style={[st.fi, { color: '#D4AF37' }]} value={formData.code || generateCode(formData.parentId || undefined)} editable={false} />
@@ -152,22 +189,25 @@ const st = StyleSheet.create({
   info: { marginHorizontal: 16, marginBottom: 8, padding: 8, backgroundColor: '#D4AF3710', borderRadius: 8 },
   infoText: { color: '#D4AF37', fontSize: 10, textAlign: 'center' },
   loading: { color: '#D4AF37', textAlign: 'center', marginTop: 40, fontSize: 16 },
-  empty: { color: '#666', textAlign: 'center', marginTop: 40, fontSize: 14 },
-  mainCard: { backgroundColor: '#16213E', borderRadius: 12, padding: 14, marginBottom: 6, borderWidth: 1, borderColor: '#2a3550' },
-  subCard: { backgroundColor: '#1a2240', borderRadius: 10, padding: 12, marginLeft: 30, marginBottom: 6, borderWidth: 1, borderColor: '#2a3550' },
-  row1: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  row2: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
-  code: { color: '#94a3b8', fontSize: 11 },
-  badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
-  badgeText: { fontSize: 10, fontWeight: 'bold' },
-  name: { color: '#FFF', fontSize: 16, fontWeight: 'bold', textAlign: 'right' },
-  subName: { color: '#FFF', fontSize: 14, fontWeight: 'bold', textAlign: 'right', marginLeft: 20 },
-  parentLabel: { color: '#666', fontSize: 9 },
-  balance: { color: '#10B981', fontSize: 13, fontWeight: 'bold' },
-  subBalance: { color: '#10B981', fontSize: 12, textAlign: 'right' },
+  emptyView: { alignItems: 'center', marginTop: 60 },
+  emptyIcon: { fontSize: 64, marginBottom: 12 },
+  empty: { color: '#666', fontSize: 16, marginBottom: 16 },
+  emptyBtn: { backgroundColor: '#D4AF37', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20 },
+  emptyBtnText: { color: '#000', fontWeight: 'bold' },
+  mainCard: { backgroundColor: '#16213E', borderRadius: 14, padding: 16, marginBottom: 8, borderWidth: 1, borderColor: '#2a3550' },
+  subCard: { backgroundColor: '#1a2240', borderRadius: 10, padding: 12, marginLeft: 20, marginBottom: 6, borderWidth: 1, borderColor: '#2a3550' },
+  row1: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  row2: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#2a3550', paddingTop: 8 },
+  icon: { fontSize: 28 }, subIcon: { fontSize: 22 },
+  name: { color: '#FFF', fontSize: 18, fontWeight: 'bold', textAlign: 'right' },
+  subName: { color: '#FFF', fontSize: 15, fontWeight: 'bold', textAlign: 'right' },
+  code: { color: '#94a3b8', fontSize: 10, textAlign: 'right' }, subCode: { color: '#94a3b8', fontSize: 9, textAlign: 'right' },
+  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }, badgeText: { fontSize: 10, fontWeight: 'bold' },
+  balance: { color: '#D4AF37', fontSize: 14, fontWeight: 'bold' },
+  subBalance: { fontSize: 15, fontWeight: 'bold' },
   count: { color: '#94a3b8', fontSize: 10 },
-  addSub: { backgroundColor: '#10B98120', width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#10B98140' },
-  addSubText: { color: '#10B981', fontSize: 16, fontWeight: 'bold' },
+  addSub: { backgroundColor: '#10B98120', width: 30, height: 30, borderRadius: 15, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#10B981' },
+  addSubText: { color: '#10B981', fontSize: 18, fontWeight: 'bold' },
   mo: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
   mc: { backgroundColor: '#16213E', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '80%' },
   mh: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#2a3550' },
