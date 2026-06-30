@@ -11,22 +11,30 @@ import { useDatabase } from '../../context/DatabaseContext';
 export default function PurchaseInvoiceScreen() {
   const router = useRouter(); const insets = useSafeAreaInsets();
   const { data: invoices, add: addInvoice } = useLocalTable('purchaseInvoices');
-  const { accounts, loadAccounts } = useAccountStore();
+  const { loadAccounts } = useAccountStore();
   const { data: suppliers } = useLocalTable('suppliers');
   const { data: items } = useLocalTable('items');
   const { data: warehouses } = useLocalTable('warehouses');
+  const { data: cashBoxes } = useLocalTable('cashBoxes');
   const { db } = useDatabase();
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [invoiceType, setInvoiceType] = useState<'cash'|'credit'>('cash');
+  const [showCashPicker, setShowCashPicker] = useState(false);
   const [showSupplierPicker, setShowSupplierPicker] = useState(false);
   const [showItemPicker, setShowItemPicker] = useState(false);
   const [showWarehousePicker, setShowWarehousePicker] = useState(false);
   const [currentLineId, setCurrentLineId] = useState('');
-  const [formData, setFormData] = useState({ date: new Date().toISOString().split('T')[0], supplierId: '', supplierName: '', warehouseId: '', warehouseName: '', paid: '0', discount: '0', description: '', refNumber: '' });
+  const [formData, setFormData] = useState({ date: '', supplierId: '', supplierName: '', cashId: '', cashName: '', warehouseId: '', warehouseName: '', paid: '0', discount: '0', description: '', refNumber: '' });
   const [lines, setLines] = useState([{ id: '1', itemId: '', itemName: '', unit: 'قطعة', qty: '0', cost: '0', total: '0' }]);
 
   useFocusEffect(useCallback(() => { loadAccounts(); }, []));
+
+  const resetForm = () => {
+    setFormData({ date: new Date().toISOString().split('T')[0], supplierId: '', supplierName: '', cashId: '', cashName: '', warehouseId: '', warehouseName: '', paid: '0', discount: '0', description: '', refNumber: '' });
+    setLines([{ id: '1', itemId: '', itemName: '', unit: 'قطعة', qty: '0', cost: '0', total: '0' }]);
+  };
+
   const addLine = () => setLines([...lines, { id: Date.now().toString(), itemId: '', itemName: '', unit: 'قطعة', qty: '0', cost: '0', total: '0' }]);
   const removeLine = (id: string) => { if (lines.length > 1) setLines(lines.filter(l => l.id !== id)); };
   const updateLine = (id: string, field: string, value: string) => { setLines(lines.map(l => { if (l.id !== id) return l; const u = { ...l, [field]: value }; if (['qty', 'cost'].includes(field)) u.total = ((parseFloat(u.qty) || 0) * (parseFloat(u.cost) || 0)).toString(); return u; })); };
@@ -35,22 +43,19 @@ export default function PurchaseInvoiceScreen() {
   const total = subtotal - discountAmount;
   const paid = parseFloat(formData.paid) || 0;
   const remaining = total - paid;
-  const generateNumber = () => `${invoiceType === 'cash' ? 'CPI' : 'CRPI'}-${(invoices.length + 1).toString().padStart(6, '0')}`;
+  const generateNumber = () => `${invoiceType === 'cash' ? 'CPI' : 'CRPI'}-${Date.now().toString().slice(-6)}`;
 
-  // ✅ الترحيل المحاسبي لمشتريات
   const postToAccounting = async (invoiceNumber: string) => {
     if (!db) return;
     try {
       const entryId = 'je' + Date.now();
       await db.runAsync('INSERT INTO journal_entries (id, number, date, description, totalDebit, totalCredit, isPosted) VALUES (?,?,?,?,?,?,1)',
-        [entryId, 'JE-' + invoiceNumber, formData.date, `فاتورة مشتريات ${invoiceNumber} - ${formData.supplierName}`, total, total]);
-      // مدين: المشتريات
+        [entryId, 'JE-' + invoiceNumber, formData.date, `فاتورة مشتريات ${invoiceNumber} - ${invoiceType === 'cash' ? formData.cashName : formData.supplierName}`, total, total]);
       await db.runAsync('INSERT INTO journal_items (id, entryId, accountId, debit, credit, description) VALUES (?,?,?,?,?,?)',
         ['ji1' + Date.now(), entryId, 'purchases', total, 0, 'مدين المشتريات']);
-      // دائن: الصندوق أو المورد
       if (invoiceType === 'cash') {
         await db.runAsync('INSERT INTO journal_items (id, entryId, accountId, debit, credit, description) VALUES (?,?,?,?,?,?)',
-          ['ji2' + Date.now(), entryId, 'cash_default', 0, total, 'دائن الصندوق']);
+          ['ji2' + Date.now(), entryId, formData.cashId, 0, total, 'دائن الصندوق']);
       } else {
         await db.runAsync('INSERT INTO journal_items (id, entryId, accountId, debit, credit, description) VALUES (?,?,?,?,?,?)',
           ['ji2' + Date.now(), entryId, formData.supplierId, 0, total, 'دائن المورد']);
@@ -59,7 +64,8 @@ export default function PurchaseInvoiceScreen() {
   };
 
   const handleSave = async () => {
-    if (!formData.supplierName) { Alert.alert('خطأ', 'اختر المورد'); return; }
+    if (invoiceType === 'credit' && !formData.supplierName) { Alert.alert('خطأ', 'اختر المورد'); return; }
+    if (invoiceType === 'cash' && !formData.cashName) { Alert.alert('خطأ', 'اختر الصندوق'); return; }
     if (lines.filter(l => l.itemName).length === 0) { Alert.alert('خطأ', 'أضف صنف واحد على الأقل'); return; }
     const invoiceNumber = generateNumber();
     await addInvoice({ number: invoiceNumber, type: invoiceType, ...formData, subtotal, discount: discountAmount, total, paid, remaining, items: lines.filter(l => l.itemName) });
@@ -68,29 +74,45 @@ export default function PurchaseInvoiceScreen() {
     Alert.alert('✅', 'تم حفظ فاتورة المشتريات والترحيل المحاسبي');
   };
 
-  const handlePrint = () => { Alert.alert('🖨️', 'جاري طباعة الفاتورة...'); };
-  const handleExport = () => { Alert.alert('📤', 'جاري تصدير الفاتورة...'); };
-  const handleRefresh = () => { loadAccounts(); };
-
   return (
     <View style={[st.c, { paddingTop: insets.top }]}><StatusBar barStyle="light-content" />
-      <ControlHeader title="فواتير المشتريات" count={invoices.length} onBack={() => router.back()} onAdd={() => { setFormData({ date: new Date().toISOString().split('T')[0], supplierId: '', supplierName: '', warehouseId: '', warehouseName: '', paid: '0', discount: '0', description: '', refNumber: '' }); setLines([{ id: '1', itemId: '', itemName: '', unit: 'قطعة', qty: '0', cost: '0', total: '0' }]); setShowModal(true); }} />
-      <ControlButtons showPrint showRefresh showExport onPrint={handlePrint} onRefresh={handleRefresh} onExport={handleExport} />
+      <ControlHeader title="فواتير المشتريات" count={invoices.length} onBack={() => router.back()} onAdd={() => { resetForm(); setShowModal(true); }} />
+      <ControlButtons showPrint showRefresh showExport onRefresh={loadAccounts} />
       <TextInput style={st.si} placeholder="🔍 بحث..." placeholderTextColor="#94a3b8" value={searchQuery} onChangeText={setSearchQuery} />
       {invoices.length === 0 ? <View style={st.e}><Text style={st.et}>لا توجد فواتير مشتريات</Text></View> :
         <FlatList data={invoices} keyExtractor={(i: any) => i.id} renderItem={({ item }: any) => (
-          <View style={st.rc}><Text style={st.rn}>{item.number}</Text><Text style={st.rd}>🏭 {item.supplierName}</Text><Text style={st.rt}>{item.type === 'cash' ? '💰 نقدي' : '📋 آجل'} | {item.total?.toLocaleString()} ﷼</Text></View>
+          <View style={st.rc}><Text style={st.rn}>{item.number}</Text><Text style={st.rd}>🏭 {item.supplierName || item.cashName}</Text><Text style={st.rt}>{item.type === 'cash' ? '💰 نقدي' : '📋 آجل'} | {item.total?.toLocaleString()} ﷼</Text></View>
         )} contentContainerStyle={{ padding: 16 }} />}
       
       <Modal visible={showModal} animationType="slide" transparent>
         <View style={st.mo}><View style={st.mc}><View style={st.mh}><Text style={st.mt}>فاتورة مشتريات جديدة</Text><TouchableOpacity onPress={() => setShowModal(false)}><Text style={st.mx}>✕</Text></TouchableOpacity></View>
         <ScrollView style={st.mb}>
           <Text style={st.fl}>نوع الفاتورة</Text>
-          <View style={st.tr}><TouchableOpacity style={[st.tb, invoiceType === 'cash' && st.tbA]} onPress={() => setInvoiceType('cash')}><Text style={[st.tbt, invoiceType === 'cash' && st.tbtA]}>💰 نقدي</Text></TouchableOpacity><TouchableOpacity style={[st.tb, invoiceType === 'credit' && st.tbA]} onPress={() => setInvoiceType('credit')}><Text style={[st.tbt, invoiceType === 'credit' && st.tbtA]}>📋 آجل</Text></TouchableOpacity></View>
-          <Text style={st.fl}>المورد *</Text><TouchableOpacity style={st.pk} onPress={() => setShowSupplierPicker(true)}><Text style={formData.supplierName ? st.pkt : st.pkp}>{formData.supplierName || 'اختيار المورد'}</Text><Text style={st.pka}>▼</Text></TouchableOpacity>
-          <Text style={st.fl}>المخزن</Text><TouchableOpacity style={st.pk} onPress={() => setShowWarehousePicker(true)}><Text style={formData.warehouseName ? st.pkt : st.pkp}>{formData.warehouseName || 'اختيار المخزن'}</Text><Text style={st.pka}>▼</Text></TouchableOpacity>
+          <View style={st.tr}>
+            <TouchableOpacity style={[st.tb, invoiceType === 'cash' && st.tbA]} onPress={() => setInvoiceType('cash')}><Text style={[st.tbt, invoiceType === 'cash' && st.tbtA]}>💰 نقدي</Text></TouchableOpacity>
+            <TouchableOpacity style={[st.tb, invoiceType === 'credit' && st.tbA]} onPress={() => setInvoiceType('credit')}><Text style={[st.tbt, invoiceType === 'credit' && st.tbtA]}>📋 آجل</Text></TouchableOpacity>
+          </View>
+
+          {invoiceType === 'cash' && (
+            <>
+              <Text style={st.fl}>الصندوق *</Text>
+              <TouchableOpacity style={st.pk} onPress={() => setShowCashPicker(true)}><Text style={formData.cashName ? st.pkt : st.pkp}>{formData.cashName || 'اختيار الصندوق'}</Text><Text style={st.pka}>▼</Text></TouchableOpacity>
+            </>
+          )}
+
+          {invoiceType === 'credit' && (
+            <>
+              <Text style={st.fl}>المورد *</Text>
+              <TouchableOpacity style={st.pk} onPress={() => setShowSupplierPicker(true)}><Text style={formData.supplierName ? st.pkt : st.pkp}>{formData.supplierName || 'اختيار المورد'}</Text><Text style={st.pka}>▼</Text></TouchableOpacity>
+            </>
+          )}
+
+          <Text style={st.fl}>المخزن</Text>
+          <TouchableOpacity style={st.pk} onPress={() => setShowWarehousePicker(true)}><Text style={formData.warehouseName ? st.pkt : st.pkp}>{formData.warehouseName || 'اختيار المخزن'}</Text><Text style={st.pka}>▼</Text></TouchableOpacity>
+
           <Text style={st.fl}>التاريخ</Text><TextInput style={st.fi} value={formData.date} onChangeText={v => setFormData({ ...formData, date: v })} />
           <Text style={st.fl}>البيان</Text><TextInput style={[st.fi, { height: 50 }]} value={formData.description} onChangeText={v => setFormData({ ...formData, description: v })} placeholder="بيان" placeholderTextColor="#666" multiline />
+
           <Text style={st.st}>📦 الأصناف</Text>
           {lines.map((line, i) => (
             <View key={line.id} style={st.lc}>
@@ -101,6 +123,7 @@ export default function PurchaseInvoiceScreen() {
             </View>
           ))}
           <TouchableOpacity style={st.al} onPress={addLine}><Text style={{ color: '#D4AF37' }}>+ إضافة صنف</Text></TouchableOpacity>
+
           <View style={st.ss}>
             <View style={st.sr}><Text style={st.sl}>الإجمالي</Text><Text style={st.sv}>{subtotal.toLocaleString()} ﷼</Text></View>
             <View style={st.sr}><Text style={st.sl}>الخصم</Text><TextInput style={[st.fi, { width: 100 }]} value={formData.discount} onChangeText={v => setFormData({ ...formData, discount: v })} keyboardType="numeric" /></View>
@@ -110,6 +133,7 @@ export default function PurchaseInvoiceScreen() {
           <TouchableOpacity style={st.sb} onPress={handleSave}><Text style={st.sbt}>💾 حفظ مع الترحيل المحاسبي</Text></TouchableOpacity>
         </ScrollView></View></View>
       </Modal>
+      <PickerModal visible={showCashPicker} title="اختيار الصندوق" data={cashBoxes || []} displayField="name" onSelect={(i: any) => setFormData({ ...formData, cashId: i.id, cashName: i.name })} onClose={() => setShowCashPicker(false)} />
       <PickerModal visible={showSupplierPicker} title="اختيار المورد" data={suppliers || []} displayField="name" onSelect={(i: any) => setFormData({ ...formData, supplierId: i.id, supplierName: i.name })} onClose={() => setShowSupplierPicker(false)} />
       <PickerModal visible={showItemPicker} title="اختيار الصنف" data={items || []} displayField="name" onSelect={(i: any) => { updateLine(currentLineId, 'itemId', i.id); updateLine(currentLineId, 'itemName', i.name); updateLine(currentLineId, 'cost', i.cost?.toString() || '0'); }} onClose={() => setShowItemPicker(false)} />
       <PickerModal visible={showWarehousePicker} title="اختيار المخزن" data={warehouses || []} displayField="name" onSelect={(i: any) => setFormData({ ...formData, warehouseId: i.id, warehouseName: i.name })} onClose={() => setShowWarehousePicker(false)} />
