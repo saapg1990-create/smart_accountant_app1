@@ -15,6 +15,7 @@ export default function RootLayout() {
           <Stack.Screen name="ledger/journal-entry" />
           <Stack.Screen name="ledger/cash-boxes" />
           <Stack.Screen name="ledger/banks" />
+          <Stack.Screen name="ledger/ewallets" />
           <Stack.Screen name="ledger/currencies" />
           <Stack.Screen name="ledger/trial-balance" />
           <Stack.Screen name="ledger/account-statement" />

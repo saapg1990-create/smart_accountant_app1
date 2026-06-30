@@ -8,7 +8,7 @@ export default function LedgerIndex() {
   const items = [
     ["📚","دليل الحسابات","/ledger/accounts"],["📁","مجموعات الحسابات","/ledger/account-groups"],
     ["📝","القيود اليومية","/ledger/journal-entry"],["🧾","سندات القبض والصرف","/ledger/vouchers"],
-    ["💰","الصناديق","/ledger/cash-boxes"],["🏦","البنوك والمحافظ","/ledger/banks"],
+    ["💰","الصناديق","/ledger/cash-boxes"],["🏦","البنوك","/ledger/banks"],["📱","المحافظ الإلكترونية","/ledger/ewallets"],
     ["💱","العملات","/ledger/currencies"],["⚖️","ميزان المراجعة","/ledger/trial-balance"],
     ["📄","كشف حساب","/ledger/account-statement"]
   ];

@@ -6,11 +6,13 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useDatabase } from '../../context/DatabaseContext';
 import { PickerModal } from '../../src/components/ui/PickerModal';
 import { useLocalTable } from '../../hooks/useLocalStore';
+import { useAccountStore } from '../../src/store/useAccountStore';
 
 export default function EWalletsScreen() {
   const router = useRouter(); const insets = useSafeAreaInsets();
   const { db } = useDatabase();
   const { data: currencies } = useLocalTable('currencies');
+  const { loadAccounts, generateCode } = useAccountStore();
   const [wallets, setWallets] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
@@ -38,32 +40,54 @@ export default function EWalletsScreen() {
   const addWallet = async () => {
     if (!name.trim()) { Alert.alert('خطأ', 'أدخل اسم المحفظة'); return; }
     if (!db) return;
-    const id = 'ew' + Date.now();
+    const walletId = 'ew-' + Date.now();
     const bal = parseFloat(balance) || 0;
     try {
       await db.runAsync('INSERT INTO ewallets (id, name, phone, currency, balance) VALUES (?,?,?,?,?)',
-        [id, name, phone, currency, bal]);
+        [walletId, name, phone, currency, bal]);
       
-      // ربط محاسبي
-      if (bal > 0) {
-        const entryId = 'je' + Date.now();
-        await db.runAsync('INSERT INTO journal_entries (id, number, date, description, totalDebit, totalCredit, isPosted) VALUES (?,?,?,?,?,?,1)',
-          [entryId, 'OPEN-' + id, new Date().toISOString().split('T')[0], 'رصيد افتتاحي محفظة: ' + name, bal, bal]);
-        await db.runAsync('INSERT INTO journal_items (id, entryId, accountId, debit, credit, description) VALUES (?,?,?,?,?,?)',
-          ['ji1' + Date.now(), entryId, id, bal, 0, 'مدين المحفظة - رصيد افتتاحي']);
-        await db.runAsync('INSERT INTO journal_items (id, entryId, accountId, debit, credit, description) VALUES (?,?,?,?,?,?)',
-          ['ji2' + Date.now(), entryId, 'capital', 0, bal, 'دائن رأس المال - رصيد افتتاحي']);
+      // إنشاء حساب أب "محافظ إلكترونية" إذا لم يكن موجوداً
+      const parentAccounts = await db.getAllAsync("SELECT * FROM accounts WHERE name = 'محافظ إلكترونية' LIMIT 1");
+      let parentId = '';
+      if (parentAccounts.length === 0) {
+        parentId = 'acc-ewallets-parent';
+        await db.runAsync('INSERT INTO accounts (id, code, name, type, parentId, currency, balance, isActive) VALUES (?,?,?,?,?,?,?,1)',
+          [parentId, '12', 'محافظ إلكترونية', 'أصل', '', 'YER', 0]);
+      } else {
+        parentId = parentAccounts[0].id;
       }
       
-      await loadWallets();
+      // إنشاء حساب فرعي للمحفظة
+      const accountCode = generateCode(parentId);
+      await db.runAsync('INSERT INTO accounts (id, code, name, type, parentId, currency, balance, isActive) VALUES (?,?,?,?,?,?,?,1)',
+        [walletId, accountCode, name, 'أصل', parentId, currency, bal]);
+      
+      await db.runAsync('UPDATE accounts SET balance = balance + ? WHERE id = ?', [bal, parentId]);
+      
+      if (bal > 0) {
+        const entryId = 'je-open-' + Date.now();
+        await db.runAsync('INSERT INTO journal_entries (id, number, date, description, totalDebit, totalCredit, isPosted) VALUES (?,?,?,?,?,?,1)',
+          [entryId, 'OPEN-EW-' + walletId.slice(-6), new Date().toISOString().split('T')[0], 'رصيد افتتاحي محفظة: ' + name, bal, bal]);
+        await db.runAsync('INSERT INTO journal_items (id, entryId, accountId, debit, credit, description) VALUES (?,?,?,?,?,?)',
+          ['ji1' + Date.now(), entryId, walletId, bal, 0, 'مدين المحفظة']);
+        await db.runAsync('INSERT INTO journal_items (id, entryId, accountId, debit, credit, description) VALUES (?,?,?,?,?,?)',
+          ['ji2' + Date.now(), entryId, 'capital', 0, bal, 'دائن رأس المال']);
+      }
+      
+      await loadWallets(); await loadAccounts();
       setName(''); setPhone(''); setCurrency('YER'); setBalance('0'); setShowForm(false);
-      Alert.alert('✅', 'تم إضافة المحفظة مع الترحيل المحاسبي');
+      Alert.alert('✅', 'تمت الإضافة مع إنشاء حساب في الدليل');
     } catch (e) { console.log('Add error:', e); }
   };
 
   const deleteWallet = async (id: string) => {
-    Alert.alert('تأكيد', 'حذف المحفظة؟', [
-      { text: 'إلغاء' }, { text: 'حذف', onPress: async () => { if (!db) return; await db.runAsync('DELETE FROM ewallets WHERE id=?', [id]); await loadWallets(); }}
+    Alert.alert('تأكيد', 'حذف المحفظة وحسابها؟', [
+      { text: 'إلغاء' }, { text: 'حذف', onPress: async () => { 
+        if (!db) return; 
+        await db.runAsync('DELETE FROM ewallets WHERE id=?', [id]); 
+        await db.runAsync('DELETE FROM accounts WHERE id=?', [id]);
+        await loadWallets(); await loadAccounts();
+      }}
     ]);
   };
 
@@ -80,7 +104,7 @@ export default function EWalletsScreen() {
       {showForm && (
         <View style={st.form}>
           <Text style={st.label}>اسم المحفظة *</Text>
-          <TextInput style={st.input} value={name} onChangeText={setName} placeholder="مثال: الراجحي، فلوسي" placeholderTextColor="#666" />
+          <TextInput style={st.input} value={name} onChangeText={setName} placeholder="مثال: الراجحي" placeholderTextColor="#666" />
           <Text style={st.label}>رقم الهاتف</Text>
           <TextInput style={st.input} value={phone} onChangeText={setPhone} placeholder="رقم الجوال" placeholderTextColor="#666" keyboardType="phone-pad" />
           <Text style={st.label}>العملة</Text>
@@ -89,7 +113,7 @@ export default function EWalletsScreen() {
           </TouchableOpacity>
           <Text style={st.label}>الرصيد الافتتاحي</Text>
           <TextInput style={st.input} value={balance} onChangeText={setBalance} placeholder="0" placeholderTextColor="#666" keyboardType="numeric" />
-          <TouchableOpacity style={st.saveBtn} onPress={addWallet}><Text style={st.saveBtnText}>💾 حفظ مع الترحيل</Text></TouchableOpacity>
+          <TouchableOpacity style={st.saveBtn} onPress={addWallet}><Text style={st.saveBtnText}>💾 حفظ وإنشاء حساب في الدليل</Text></TouchableOpacity>
         </View>
       )}
       <FlatList data={filtered} keyExtractor={item => item.id}
@@ -119,7 +143,7 @@ const st = StyleSheet.create({
   input: { backgroundColor: '#0a0f1e', color: '#fff', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#2a3550', marginBottom: 8, textAlign: 'right' },
   picker: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0a0f1e', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#2a3550', marginBottom: 8 },
   pickerText: { color: '#fff', fontSize: 14 }, arrow: { color: '#D4AF37', fontSize: 12 },
-  saveBtn: { backgroundColor: '#D4AF37', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 8 }, saveBtnText: { color: '#000', fontWeight: 'bold', fontSize: 16 },
+  saveBtn: { backgroundColor: '#D4AF37', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 8 }, saveBtnText: { color: '#000', fontWeight: 'bold', fontSize: 14 },
   card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#16213E', padding: 16, marginHorizontal: 12, marginVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: '#2a3550' },
   walletName: { color: '#fff', fontSize: 16, fontWeight: 'bold' }, walletDetail: { color: '#9A9B3B', fontSize: 12, marginTop: 4 }, walletBalance: { color: '#D4AF37', fontSize: 14, marginTop: 4 },
   deleteBtn: { fontSize: 22, padding: 8 }, empty: { color: '#666', textAlign: 'center', marginTop: 40, fontSize: 16 },
