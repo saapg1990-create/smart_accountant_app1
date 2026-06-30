@@ -1,33 +1,36 @@
 import { create } from 'zustand';
-import LocalStore from '../../hooks/useLocalStore';
 
-const store = LocalStore.getInstance();
+// سنستخدم متغير عام للداتابيز
+let dbInstance: any = null;
+
+export const setDatabase = (db: any) => { dbInstance = db; };
+
+const getDB = () => {
+  if (!dbInstance) throw new Error('Database not initialized');
+  return dbInstance;
+};
 
 interface Account {
   id: string; code: string; name: string; type: string;
   currency: string; balance: number; parentId: string; createdAt: string;
+  isActive?: number;
 }
 
 interface AccountStore {
   accounts: Account[];
   loading: boolean;
   
-  // العمليات الأساسية
   loadAccounts: () => Promise<void>;
   addAccount: (account: Partial<Account>) => Promise<string | null>;
   updateAccount: (id: string, updates: Partial<Account>) => Promise<void>;
   removeAccount: (id: string) => Promise<void>;
   
-  // الاستعلامات
   getMainAccounts: () => Account[];
   getSubAccounts: (parentId: string) => Account[];
   getLeafAccounts: () => Account[];
   getAccountsByType: (type: string) => Account[];
   
-  // التوليد
   generateCode: (parentId?: string) => string;
-  
-  // التحديث التراكمي
   updateParentBalance: (parentId: string) => Promise<void>;
 }
 
@@ -36,57 +39,94 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
   loading: false,
 
   loadAccounts: async () => {
-    set({ loading: true });
-    const accounts = await store.getAll('accounts');
-    set({ accounts: accounts as Account[], loading: false });
+    try {
+      const db = getDB();
+      set({ loading: true });
+      const result = await db.getAllAsync('SELECT * FROM accounts WHERE isActive=1 ORDER BY code');
+      set({ accounts: result as Account[], loading: false });
+    } catch (e) {
+      console.log('Load accounts error:', e);
+      set({ loading: false });
+    }
   },
 
   addAccount: async (account) => {
-    // منع التكرار: نفس الاسم + نفس الأب
-    const { accounts } = get();
-    const parentId = account.parentId || '';
-    const exists = accounts.find((a: Account) => 
-      a.name === account.name && (a.parentId || '') === parentId
-    );
-    if (exists) return null; // مكرر
-    
-    const id = await store.add('accounts', account);
-    await get().loadAccounts();
-    
-    // تحديث تراكمي لرصيد الأب
-    if (parentId) {
-      await get().updateParentBalance(parentId);
+    try {
+      const db = getDB();
+      const { accounts } = get();
+      const parentId = account.parentId || '';
+      
+      // منع التكرار
+      const exists = accounts.find((a: Account) => 
+        a.name === account.name && (a.parentId || '') === parentId
+      );
+      if (exists) return null;
+      
+      const id = account.id || ('acc-' + Date.now());
+      const code = account.code || get().generateCode(parentId);
+      
+      await db.runAsync(
+        'INSERT INTO accounts (id, code, name, type, parentId, currency, balance, isActive) VALUES (?,?,?,?,?,?,?,1)',
+        [id, code, account.name, account.type, parentId, account.currency || 'YER', account.balance || 0]
+      );
+      
+      await get().loadAccounts();
+      
+      if (parentId) {
+        await get().updateParentBalance(parentId);
+      }
+      
+      return id;
+    } catch (e) {
+      console.log('Add account error:', e);
+      return null;
     }
-    
-    return id;
   },
 
   updateAccount: async (id, updates) => {
-    await store.update('accounts', id, updates);
-    await get().loadAccounts();
-    
-    // تحديث تراكمي
-    const account = get().accounts.find((a: Account) => a.id === id);
-    if (account?.parentId) {
-      await get().updateParentBalance(account.parentId);
-    }
+    try {
+      const db = getDB();
+      const fields: string[] = [];
+      const values: any[] = [];
+      
+      if (updates.name !== undefined) { fields.push('name=?'); values.push(updates.name); }
+      if (updates.code !== undefined) { fields.push('code=?'); values.push(updates.code); }
+      if (updates.type !== undefined) { fields.push('type=?'); values.push(updates.type); }
+      if (updates.currency !== undefined) { fields.push('currency=?'); values.push(updates.currency); }
+      if (updates.balance !== undefined) { fields.push('balance=?'); values.push(updates.balance); }
+      if (updates.parentId !== undefined) { fields.push('parentId=?'); values.push(updates.parentId); }
+      
+      if (fields.length > 0) {
+        values.push(id);
+        await db.runAsync(`UPDATE accounts SET ${fields.join(',')} WHERE id=?`, values);
+      }
+      
+      await get().loadAccounts();
+      
+      const account = get().accounts.find((a: Account) => a.id === id);
+      if (account?.parentId) {
+        await get().updateParentBalance(account.parentId);
+      }
+    } catch (e) { console.log('Update error:', e); }
   },
 
   removeAccount: async (id) => {
-    // منع حذف حساب له أبناء
-    const subs = get().getSubAccounts(id);
-    if (subs.length > 0) return;
-    
-    const account = get().accounts.find((a: Account) => a.id === id);
-    await store.remove('accounts', id);
-    await get().loadAccounts();
-    
-    if (account?.parentId) {
-      await get().updateParentBalance(account.parentId);
-    }
+    try {
+      const db = getDB();
+      const subs = get().getSubAccounts(id);
+      if (subs.length > 0) return;
+      
+      const account = get().accounts.find((a: Account) => a.id === id);
+      await db.runAsync('UPDATE accounts SET isActive=0 WHERE id=?', [id]);
+      await get().loadAccounts();
+      
+      if (account?.parentId) {
+        await get().updateParentBalance(account.parentId);
+      }
+    } catch (e) { console.log('Remove error:', e); }
   },
 
-  getMainAccounts: () => get().accounts.filter((a: Account) => !a.parentId),
+  getMainAccounts: () => get().accounts.filter((a: Account) => !a.parentId || a.parentId === ''),
   
   getSubAccounts: (parentId: string) => get().accounts.filter((a: Account) => a.parentId === parentId),
   
@@ -115,9 +155,12 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
   },
 
   updateParentBalance: async (parentId: string) => {
-    const subs = get().getSubAccounts(parentId);
-    const totalBalance = subs.reduce((sum: number, sub: Account) => sum + (sub.balance || 0), 0);
-    await store.update('accounts', parentId, { balance: totalBalance });
-    await get().loadAccounts();
+    try {
+      const db = getDB();
+      const subs = get().getSubAccounts(parentId);
+      const totalBalance = subs.reduce((sum: number, sub: Account) => sum + (sub.balance || 0), 0);
+      await db.runAsync('UPDATE accounts SET balance=? WHERE id=?', [totalBalance, parentId]);
+      await get().loadAccounts();
+    } catch (e) { console.log('Update parent error:', e); }
   },
 }));
