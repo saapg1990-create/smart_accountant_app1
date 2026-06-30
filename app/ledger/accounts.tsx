@@ -79,7 +79,7 @@ export default function AccountsScreen() {
         <View style={st.sumItem}><Text style={st.sumVal}>{leafAccounts.length}</Text><Text style={st.sumLbl}>ترحيل</Text></View>
       </View>
 
-      <ControlButtons showAdd showEdit showDelete showSave showSearch showPrint showRefresh showExport onAdd={openAdd} onEdit={openEdit} onDelete={handleDelete} onSave={handleSave} onRefresh={handleRefresh} />
+      <ControlButtons showEdit={false} showDelete={false} />
       <TextInput style={st.si} placeholder="🔍 بحث..." placeholderTextColor="#94a3b8" value={searchQuery} onChangeText={setSearchQuery} />
       <View style={st.fr}>{types.map(t => <TouchableOpacity key={t} style={[st.fb, selectedType === t && st.fbA]} onPress={() => setSelectedType(t)}><Text style={[st.ft, selectedType === t && st.ftA]}>{t}</Text></TouchableOpacity>)}</View>
       <View style={st.infoBar}><Text style={st.infoText}>💡 الرئيسية للتجميع | الفرعية (ترحيل) للعمليات</Text></View>
