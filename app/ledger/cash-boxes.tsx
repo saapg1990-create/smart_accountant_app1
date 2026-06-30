@@ -54,7 +54,7 @@ export default function CashBoxesScreen() {
   return (
     <View style={[st.c, { paddingTop: insets.top }]}><StatusBar barStyle="light-content" />
       <ControlHeader title="الصناديق" count={cashBoxes.length} onBack={() => router.back()} onAdd={() => { setFormData({ name: '', currency: 'YER', balance: '0' }); setShowModal(true); }} />
-      <ControlButtons showEdit={false} showDelete={false} />
+      <ControlButtons showAdd showEdit showDelete showSearch showPrint showRefresh showExport />
       <TextInput style={st.si} placeholder="🔍 بحث..." placeholderTextColor="#94a3b8" value={searchQuery} onChangeText={setSearchQuery} />
       <View style={st.sm}><Text style={st.sl}>إجمالي النقدية</Text><Text style={st.sv}>{totalBalance.toLocaleString()} ﷼</Text></View>
       {filtered.length === 0 ? <View style={st.e}><Text style={st.ei}>💰</Text><Text style={st.et}>لا توجد صناديق</Text></View> :

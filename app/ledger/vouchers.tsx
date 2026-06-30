@@ -61,7 +61,7 @@ export default function VouchersScreen() {
         <TouchableOpacity style={[st.tab, activeTab === 'payment' && st.tabA]} onPress={() => setActiveTab('payment')}><Text style={[st.tabT, activeTab === 'payment' && st.tabTA]}>📤 صرف</Text><Text style={st.tabAm}>{totalPayments.toLocaleString()} ﷼</Text></TouchableOpacity>
       </View>
 
-      <ControlButtons showEdit={false} showDelete={false} />
+      <ControlButtons showAdd showEdit showDelete showSearch showPrint showRefresh showExport />
       <TextInput style={st.si} placeholder="🔍 بحث..." placeholderTextColor="#94a3b8" value={searchQuery} onChangeText={setSearchQuery} />
       
       {filtered.length === 0 ? <View style={st.e}><Text style={st.ei}>🧾</Text><Text style={st.et}>لا توجد سندات</Text></View> :

@@ -1,178 +1,139 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, StatusBar, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLocalTable } from '../../hooks/useLocalStore';
-
-interface Account { id: string; code: string; name: string; type: string; balance: number; }
-interface JournalLine { id: string; entryId: string; accountName: string; debit: number; credit: number; }
-interface JournalEntry { id: string; number: string; date: string; description: string; lines: JournalLine[]; }
+import { useDatabase } from '../../context/DatabaseContext';
+import { ControlHeader } from '../../src/components/ui/ControlButtons';
 
 export default function AccountStatementScreen() {
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const { data: accounts } = useLocalTable<Account>('accounts');
-  const { data: entries } = useLocalTable<JournalEntry>('journalEntries');
+  const router = useRouter(); const insets = useSafeAreaInsets();
+  const { db } = useDatabase();
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [selectedAccount, setSelectedAccount] = useState<any>(null);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [showPicker, setShowPicker] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedAccountId, setSelectedAccountId] = useState<string>('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
 
-  const selectedAccount = accounts.find((a: Account) => a.id === selectedAccountId);
-  const safeNum = (v: any): number => (v === null || isNaN(Number(v)) ? 0 : Number(v));
+  useFocusEffect(useCallback(() => { loadAccounts(); }, [db]));
 
-  // فلترة القيود حسب الحساب المحدد
-  const accountEntries = entries.filter((e: JournalEntry) => {
-    if (selectedAccountId && e.lines) {
-      return e.lines.some((l: JournalLine) => l.accountName === selectedAccount?.name);
-    }
-    return true;
-  });
-
-  const totalDebit = accountEntries.reduce((s: number, e: JournalEntry) => {
-    return s + (e.lines || []).filter((l: JournalLine) => l.accountName === selectedAccount?.name).reduce((sum: number, l: JournalLine) => sum + safeNum(l.debit), 0);
-  }, 0);
-
-  const totalCredit = accountEntries.reduce((s: number, e: JournalEntry) => {
-    return s + (e.lines || []).filter((l: JournalLine) => l.accountName === selectedAccount?.name).reduce((sum: number, l: JournalLine) => sum + safeNum(l.credit), 0);
-  }, 0);
-
-  const theme = {
-    text: '#f1f5f9', accent: '#D4AF37', background: '#0A1128',
-    card: '#16213E', border: '#2a3550', mutedForeground: '#94a3b8',
+  const loadAccounts = async () => {
+    if (!db) return;
+    const result = await db.getAllAsync('SELECT * FROM accounts WHERE isActive=1 ORDER BY code');
+    setAccounts(result);
   };
 
+  const loadTransactions = async (accountId: string) => {
+    if (!db) return;
+    const result = await db.getAllAsync(
+      `SELECT ji.*, je.date, je.number as entryNumber, je.description as entryDesc 
+       FROM journal_items ji 
+       JOIN journal_entries je ON ji.entryId = je.id 
+       WHERE ji.accountId = ? 
+       ORDER BY je.date DESC, je.number DESC 
+       LIMIT 100`,
+      [accountId]
+    );
+    setTransactions(result);
+  };
+
+  const selectAccount = (account: any) => {
+    setSelectedAccount(account);
+    loadTransactions(account.id);
+    setShowPicker(false);
+  };
+
+  const balance = transactions.reduce((sum, t) => sum + (t.debit || 0) - (t.credit || 0), 0);
+
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="light-content" />
+    <View style={[st.c, { paddingTop: insets.top }]}>
+      <ControlHeader title="كشف حساب" onBack={() => router.back()} />
       
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={[styles.backBtn, { color: theme.accent }]}>←</Text>
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: theme.text }]}>كشف حساب</Text>
-        <View style={{ width: 36 }} />
-      </View>
+      <TouchableOpacity style={st.selector} onPress={() => setShowPicker(true)}>
+        <Text style={selectedAccount ? st.selectorText : st.placeholder}>
+          {selectedAccount ? `${selectedAccount.code} - ${selectedAccount.name}` : 'اختر الحساب...'}
+        </Text>
+        <Text style={st.arrow}>▼</Text>
+      </TouchableOpacity>
 
-      {/* اختيار الحساب */}
-      <View style={styles.filterSection}>
-        <Text style={[styles.label, { color: theme.mutedForeground }]}>اختيار الحساب</Text>
-        <View style={styles.accountList}>
-          {accounts.slice(0, 10).map((acc: Account) => (
-            <TouchableOpacity
-              key={acc.id}
-              style={[styles.accountChip, selectedAccountId === acc.id && { backgroundColor: theme.accent + '30', borderColor: theme.accent }]}
-              onPress={() => setSelectedAccountId(acc.id)}
-            >
-              <Text style={[styles.accountChipText, { color: selectedAccountId === acc.id ? theme.accent : theme.mutedForeground }]}>
-                {acc.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        <TextInput style={styles.searchInput} placeholder="🔍 بحث عن حساب..." placeholderTextColor="#94a3b8" value={searchQuery} onChangeText={setSearchQuery} />
-        {searchQuery.length > 0 && accounts.filter((a: Account) => a.name?.includes(searchQuery)).map((acc: Account) => (
-          <TouchableOpacity key={acc.id} style={styles.searchResult} onPress={() => { setSelectedAccountId(acc.id); setSearchQuery(''); }}>
-            <Text style={{ color: '#FFFFFF' }}>{acc.name} ({acc.code})</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* معلومات الحساب */}
       {selectedAccount && (
-        <View style={[styles.infoCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          <Text style={[styles.accountName, { color: theme.text }]}>{selectedAccount.name}</Text>
-          <Text style={[styles.accountCode, { color: theme.mutedForeground }]}>كود: {selectedAccount.code} | {selectedAccount.type}</Text>
-          <View style={styles.balanceRow}>
-            <View style={styles.balanceItem}>
-              <Text style={[styles.balanceLabel, { color: theme.mutedForeground }]}>مدين</Text>
-              <Text style={[styles.balanceValue, { color: '#10B981' }]}>{totalDebit.toLocaleString()} ﷼</Text>
-            </View>
-            <View style={styles.balanceItem}>
-              <Text style={[styles.balanceLabel, { color: theme.mutedForeground }]}>دائن</Text>
-              <Text style={[styles.balanceValue, { color: '#EF4444' }]}>{totalCredit.toLocaleString()} ﷼</Text>
-            </View>
-            <View style={styles.balanceItem}>
-              <Text style={[styles.balanceLabel, { color: theme.mutedForeground }]}>الرصيد</Text>
-              <Text style={[styles.balanceValue, { color: theme.accent }]}>
-                {((selectedAccount.balance || 0) + totalDebit - totalCredit).toLocaleString()} ﷼
-              </Text>
-            </View>
+        <View style={st.balanceBox}>
+          <Text style={st.balanceLabel}>الرصيد الحالي</Text>
+          <Text style={[st.balanceValue, { color: balance >= 0 ? '#10B981' : '#EF4444' }]}>
+            {balance.toLocaleString()} ﷼
+          </Text>
+        </View>
+      )}
+
+      {showPicker && (
+        <View style={st.pickerOverlay}>
+          <View style={st.pickerContent}>
+            <Text style={st.pickerTitle}>اختر الحساب</Text>
+            <TextInput style={st.searchInput} placeholder="🔍 بحث..." placeholderTextColor="#666" value={searchQuery} onChangeText={setSearchQuery} />
+            <FlatList data={accounts.filter(a => a.name?.includes(searchQuery) || a.code?.includes(searchQuery))}
+              keyExtractor={i => i.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity style={st.pickerItem} onPress={() => selectAccount(item)}>
+                  <Text style={st.pickerItemCode}>{item.code}</Text>
+                  <Text style={st.pickerItemName}>{item.name}</Text>
+                  <Text style={[st.pickerItemType, { color: item.type === 'أصل' ? '#10B981' : '#EF4444' }]}>{item.type}</Text>
+                </TouchableOpacity>
+              )}
+            />
+            <TouchableOpacity style={st.closePicker} onPress={() => setShowPicker(false)}>
+              <Text style={st.closePickerText}>إغلاق</Text>
+            </TouchableOpacity>
           </View>
         </View>
       )}
 
-      {/* الحركات */}
-      {selectedAccount && accountEntries.length > 0 ? (
-        <FlatList
-          data={accountEntries}
-          keyExtractor={(item: JournalEntry) => item.id}
-          renderItem={({ item }) => {
-            const line = item.lines?.find((l: JournalLine) => l.accountName === selectedAccount.name);
-            return (
-              <View style={[styles.entryCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                <View style={styles.entryHeader}>
-                  <Text style={[styles.entryNumber, { color: theme.accent }]}>{item.number}</Text>
-                  <Text style={[styles.entryDate, { color: theme.mutedForeground }]}>{item.date}</Text>
-                </View>
-                <Text style={[styles.entryDesc, { color: theme.text }]}>{item.description}</Text>
-                {line && (
-                  <View style={styles.entryAmounts}>
-                    {safeNum(line.debit) > 0 && (
-                      <Text style={[styles.amountText, { color: '#10B981' }]}>مدين: {safeNum(line.debit).toLocaleString()} ﷼</Text>
-                    )}
-                    {safeNum(line.credit) > 0 && (
-                      <Text style={[styles.amountText, { color: '#EF4444' }]}>دائن: {safeNum(line.credit).toLocaleString()} ﷼</Text>
-                    )}
-                  </View>
-                )}
-              </View>
-            );
-          }}
-          contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
-        />
-      ) : selectedAccount ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyIcon}>📄</Text>
-          <Text style={[styles.emptyText, { color: theme.text }]}>لا توجد حركات لهذا الحساب</Text>
-        </View>
-      ) : (
-        <View style={styles.empty}>
-          <Text style={styles.emptyIcon}>🔍</Text>
-          <Text style={[styles.emptyText, { color: theme.text }]}>اختر حساباً لعرض كشف الحساب</Text>
-        </View>
-      )}
+      <View style={st.tableHeader}>
+        <Text style={[st.th, { flex: 1 }]}>التاريخ</Text>
+        <Text style={[st.th, { flex: 2 }]}>البيان</Text>
+        <Text style={[st.th, { flex: 1, color: '#EF4444' }]}>مدين</Text>
+        <Text style={[st.th, { flex: 1, color: '#10B981' }]}>دائن</Text>
+      </View>
+
+      <FlatList data={transactions} keyExtractor={i => i.id}
+        renderItem={({ item }) => (
+          <View style={st.row}>
+            <Text style={[st.cell, { flex: 1, fontSize: 10 }]}>{item.date}</Text>
+            <View style={{ flex: 2 }}>
+              <Text style={st.desc}>{item.description || item.entryDesc}</Text>
+              <Text style={st.entryNum}>{item.entryNumber}</Text>
+            </View>
+            <Text style={[st.cell, { flex: 1, color: '#EF4444' }]}>{item.debit > 0 ? item.debit.toLocaleString() : '-'}</Text>
+            <Text style={[st.cell, { flex: 1, color: '#10B981' }]}>{item.credit > 0 ? item.credit.toLocaleString() : '-'}</Text>
+          </View>
+        )}
+        ListEmptyComponent={<Text style={st.empty}>{selectedAccount ? 'لا توجد حركات' : 'اختر حساباً لعرض الحركات'}</Text>}
+      />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0A1128' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
-  backBtn: { fontSize: 24, fontWeight: 'bold' },
-  title: { fontSize: 18, fontWeight: 'bold' },
-  filterSection: { paddingHorizontal: 16, marginBottom: 12 },
-  label: { fontSize: 13, marginBottom: 8 },
-  accountList: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 },
-  accountChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#16213E', borderWidth: 1, borderColor: '#2a3550' },
-  accountChipText: { fontSize: 12 },
-  searchInput: { backgroundColor: '#16213E', borderRadius: 10, padding: 10, color: '#FFFFFF', borderWidth: 1, borderColor: '#2a3550', textAlign: 'right', fontSize: 14 },
-  searchResult: { padding: 10, backgroundColor: '#16213E', borderRadius: 8, marginTop: 4 },
-  infoCard: { marginHorizontal: 16, marginBottom: 16, padding: 16, borderRadius: 14, borderWidth: 1 },
-  accountName: { fontSize: 18, fontWeight: 'bold', marginBottom: 4 },
-  accountCode: { fontSize: 12, marginBottom: 12 },
-  balanceRow: { flexDirection: 'row', justifyContent: 'space-around' },
-  balanceItem: { alignItems: 'center' },
-  balanceLabel: { fontSize: 11, marginBottom: 4 },
-  balanceValue: { fontSize: 16, fontWeight: 'bold' },
-  empty: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyIcon: { fontSize: 48, marginBottom: 12 },
-  emptyText: { fontSize: 16, fontWeight: 'bold' },
-  entryCard: { padding: 14, borderRadius: 12, marginBottom: 8, borderWidth: 1 },
-  entryHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  entryNumber: { fontSize: 13, fontWeight: 'bold' },
-  entryDate: { fontSize: 11 },
-  entryDesc: { fontSize: 14, marginBottom: 6 },
-  entryAmounts: { flexDirection: 'row', gap: 12 },
-  amountText: { fontSize: 13, fontWeight: 'bold' },
+const st = StyleSheet.create({
+  c: { flex: 1, backgroundColor: '#0A1128' },
+  selector: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', margin: 16, padding: 14, backgroundColor: '#16213E', borderRadius: 10, borderWidth: 1, borderColor: '#2a3550' },
+  selectorText: { color: '#FFF', fontSize: 16, flex: 1, textAlign: 'right' },
+  placeholder: { color: '#666', fontSize: 16, flex: 1, textAlign: 'right' },
+  arrow: { color: '#D4AF37', fontSize: 14, marginLeft: 8 },
+  balanceBox: { marginHorizontal: 16, padding: 14, backgroundColor: '#16213E', borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: '#D4AF37' },
+  balanceLabel: { color: '#94a3b8', fontSize: 12 }, balanceValue: { fontSize: 24, fontWeight: 'bold', marginTop: 4 },
+  pickerOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 10, justifyContent: 'center', padding: 20 },
+  pickerContent: { backgroundColor: '#16213E', borderRadius: 16, maxHeight: '80%', padding: 16 },
+  pickerTitle: { color: '#D4AF37', fontSize: 18, fontWeight: 'bold', textAlign: 'center', marginBottom: 12 },
+  searchInput: { backgroundColor: '#0A1128', color: '#FFF', padding: 12, borderRadius: 8, marginBottom: 10, textAlign: 'right' },
+  pickerItem: { flexDirection: 'row', alignItems: 'center', padding: 12, borderBottomWidth: 1, borderBottomColor: '#2a3550' },
+  pickerItemCode: { color: '#D4AF37', fontSize: 14, fontWeight: 'bold', width: 70 },
+  pickerItemName: { color: '#FFF', fontSize: 14, flex: 1, textAlign: 'right' },
+  pickerItemType: { fontSize: 11, fontWeight: 'bold' },
+  closePicker: { backgroundColor: '#EF4444', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 10 },
+  closePickerText: { color: '#FFF', fontWeight: 'bold' },
+  tableHeader: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#16213E', marginHorizontal: 12, borderRadius: 8, marginTop: 12 },
+  th: { color: '#D4AF37', fontSize: 12, fontWeight: 'bold', textAlign: 'center' },
+  row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#1a2540' },
+  cell: { color: '#FFF', fontSize: 13, textAlign: 'center' },
+  desc: { color: '#FFF', fontSize: 12, textAlign: 'right' },
+  entryNum: { color: '#94a3b8', fontSize: 10, textAlign: 'right', marginTop: 2 },
+  empty: { color: '#94a3b8', textAlign: 'center', marginTop: 40, fontSize: 16 },
 });

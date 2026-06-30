@@ -6,6 +6,7 @@ import { useLocalTable } from '../../hooks/useLocalStore';
 import { useAccountStore } from '../../src/store/useAccountStore';
 import { PickerModal } from '../../src/components/ui/PickerModal';
 import { ControlHeader } from '../../src/components/ui/ControlButtons';
+import { useDatabase } from '../../context/DatabaseContext';
 
 export default function PurchaseReturnScreen() {
   const router = useRouter(); const insets = useSafeAreaInsets();
@@ -14,6 +15,7 @@ export default function PurchaseReturnScreen() {
   const { data: suppliers } = useLocalTable('suppliers');
   const { data: invoices } = useLocalTable('purchaseInvoices');
   const { data: items } = useLocalTable('items');
+  const { db } = useDatabase();
   const [showModal, setShowModal] = useState(false);
   const [showSupplierPicker, setShowSupplierPicker] = useState(false);
   const [showInvoicePicker, setShowInvoicePicker] = useState(false);
@@ -23,15 +25,29 @@ export default function PurchaseReturnScreen() {
   const [lines, setLines] = useState([{ id: '1', itemId: '', itemName: '', qty: '0', price: '0', total: '0' }]);
 
   useFocusEffect(useCallback(() => { loadAccounts(); }, []));
-
   const addLine = () => setLines([...lines, { id: Date.now().toString(), itemId: '', itemName: '', qty: '0', price: '0', total: '0' }]);
   const updateLine = (id: string, field: string, value: string) => { setLines(lines.map(l => { if (l.id !== id) return l; const u = { ...l, [field]: value }; if (['qty', 'price'].includes(field)) u.total = ((parseFloat(u.qty) || 0) * (parseFloat(u.price) || 0)).toString(); return u; })); };
   const total = lines.reduce((s, l) => s + (parseFloat(l.total) || 0), 0);
 
+  const postToAccounting = async (returnNumber: string) => {
+    if (!db) return;
+    try {
+      const entryId = 'je' + Date.now();
+      await db.runAsync('INSERT INTO journal_entries (id, number, date, description, totalDebit, totalCredit, isPosted) VALUES (?,?,?,?,?,?,1)',
+        [entryId, 'JE-' + returnNumber, formData.date, `مردود مشتريات ${returnNumber} - ${formData.supplierName}`, total, total]);
+      await db.runAsync('INSERT INTO journal_items (id, entryId, accountId, debit, credit, description) VALUES (?,?,?,?,?,?)',
+        ['ji1' + Date.now(), entryId, formData.supplierId, total, 0, 'مدين المورد - مردود مشتريات']);
+      await db.runAsync('INSERT INTO journal_items (id, entryId, accountId, debit, credit, description) VALUES (?,?,?,?,?,?)',
+        ['ji2' + Date.now(), entryId, 'purchase_returns', 0, total, 'دائن مردودات المشتريات']);
+    } catch (e) { console.log('Posting error:', e); }
+  };
+
   const handleSave = async () => {
     if (!formData.supplierName) { Alert.alert('خطأ', 'اختر المورد'); return; }
-    await add({ number: 'PR-' + (returns.length + 1).toString().padStart(5, '0'), ...formData, total, items: lines.filter(l => l.itemName) });
-    setShowModal(false); Alert.alert('✅', 'تم حفظ مردود المشتريات');
+    const returnNumber = 'PR-' + (returns.length + 1).toString().padStart(5, '0');
+    await add({ number: returnNumber, ...formData, total, items: lines.filter(l => l.itemName) });
+    await postToAccounting(returnNumber);
+    setShowModal(false); Alert.alert('✅', 'تم حفظ مردود المشتريات مع الترحيل المحاسبي');
   };
 
   return (
@@ -41,15 +57,14 @@ export default function PurchaseReturnScreen() {
         <FlatList data={returns} keyExtractor={(i: any) => i.id} renderItem={({ item }: any) => (
           <View style={st.rc}><Text style={st.rn}>{item.number}</Text><Text style={st.rd}>🏭 {item.supplierName}</Text><Text style={st.rt}>{item.total?.toLocaleString()} ﷼</Text></View>
         )} contentContainerStyle={{ padding: 16 }} />}
-      
       <Modal visible={showModal} animationType="slide" transparent>
         <View style={st.mo}><View style={st.mc}><View style={st.mh}><Text style={st.mt}>مردود مشتريات</Text><TouchableOpacity onPress={() => setShowModal(false)}><Text style={st.mx}>✕</Text></TouchableOpacity></View>
         <ScrollView style={st.mb}>
           <Text style={st.fl}>المورد *</Text><TouchableOpacity style={st.pk} onPress={() => setShowSupplierPicker(true)}><Text style={formData.supplierName ? st.pkt : st.pkp}>{formData.supplierName || 'اختيار المورد'}</Text><Text style={st.pka}>▼</Text></TouchableOpacity>
-          <Text style={st.fl}>رقم فاتورة المشتريات</Text><TouchableOpacity style={st.pk} onPress={() => setShowInvoicePicker(true)}><Text style={formData.invoiceNumber ? st.pkt : st.pkp}>{formData.invoiceNumber || 'اختيار الفاتورة'}</Text><Text style={st.pka}>▼</Text></TouchableOpacity>
+          <Text style={st.fl}>رقم الفاتورة</Text><TouchableOpacity style={st.pk} onPress={() => setShowInvoicePicker(true)}><Text style={formData.invoiceNumber ? st.pkt : st.pkp}>{formData.invoiceNumber || 'اختيار الفاتورة'}</Text><Text style={st.pka}>▼</Text></TouchableOpacity>
           <Text style={st.fl}>التاريخ</Text><TextInput style={st.fi} value={formData.date} onChangeText={v => setFormData({ ...formData, date: v })} />
-          <Text style={st.fl}>سبب المردود</Text><TextInput style={st.fi} value={formData.reason} onChangeText={v => setFormData({ ...formData, reason: v })} />
-          <Text style={st.st}>📦 الأصناف المرتجعة</Text>
+          <Text style={st.fl}>السبب</Text><TextInput style={st.fi} value={formData.reason} onChangeText={v => setFormData({ ...formData, reason: v })} />
+          <Text style={st.st}>📦 الأصناف</Text>
           {lines.map((line, i) => (
             <View key={line.id} style={st.lc}>
               <TouchableOpacity style={st.pk} onPress={() => { setCurrentLineId(line.id); setShowItemPicker(true); }}><Text style={line.itemName ? st.pkt : st.pkp}>{line.itemName || 'اختيار الصنف'}</Text><Text style={st.pka}>▼</Text></TouchableOpacity>
@@ -58,7 +73,7 @@ export default function PurchaseReturnScreen() {
           ))}
           <TouchableOpacity style={st.al} onPress={addLine}><Text style={{ color: '#D4AF37' }}>+ إضافة صنف</Text></TouchableOpacity>
           <Text style={st.gt}>الإجمالي: {total.toLocaleString()} ﷼</Text>
-          <TouchableOpacity style={st.sb} onPress={handleSave}><Text style={st.sbt}>💾 حفظ</Text></TouchableOpacity>
+          <TouchableOpacity style={st.sb} onPress={handleSave}><Text style={st.sbt}>💾 حفظ مع الترحيل</Text></TouchableOpacity>
         </ScrollView></View></View>
       </Modal>
       <PickerModal visible={showSupplierPicker} title="اختيار المورد" data={suppliers || []} displayField="name" onSelect={(i: any) => setFormData({ ...formData, supplierId: i.id, supplierName: i.name })} onClose={() => setShowSupplierPicker(false)} />
