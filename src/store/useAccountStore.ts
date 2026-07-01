@@ -136,3 +136,25 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
     } catch (e) { console.log('Update parent error:', e); }
   },
 }));
+
+// ✅ دالة جديدة: تجيب الحسابات المناسبة لكل حقل
+getAccountsForField: (fieldType: string) => {
+  const { accounts } = get();
+  const mapping: Record<string, string> = {
+    'cash': '111',      // الصندوق
+    'bank': '112',      // البنوك
+    'ewallet': '113',   // المحافظ الإلكترونية
+    'customer': '114',  // العملاء
+    'inventory': '115', // المخزون
+    'supplier': '211',  // الموردين
+    'tax': '212',       // الضرائب
+    'sales': '411',     // المبيعات
+    'purchases': '511', // المشتريات
+    'salary': '512',    // الرواتب
+    'rent': '513',      // الإيجارات
+    'expense': '514',   // مصاريف تشغيلية
+  };
+  const parentId = mapping[fieldType];
+  if (!parentId) return accounts.filter((a: Account) => a.parentId); // كل الفرعية
+  return accounts.filter((a: Account) => a.parentId === parentId);
+};
