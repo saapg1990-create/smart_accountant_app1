@@ -13,7 +13,7 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
       try {
         const database = await SQLite.openDatabaseAsync('accounting.db');
         await createTables(database);
-        await seedMainAccounts(database);
+        await seedAccounts(database);
         setDb(database);
         setDatabase(database);
       } catch (e) {
@@ -32,82 +32,82 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function useDatabase() {
-  return useContext(DatabaseContext);
-}
+export function useDatabase() { return useContext(DatabaseContext); }
 
 async function createTables(db: SQLite.SQLiteDatabase) {
   await db.execAsync(`
-    CREATE TABLE IF NOT EXISTS accounts (
-      id TEXT PRIMARY KEY, code TEXT, name TEXT NOT NULL, type TEXT,
-      parentId TEXT DEFAULT '', currency TEXT DEFAULT 'YER',
-      balance REAL DEFAULT 0, isActive INTEGER DEFAULT 1,
-      createdAt TEXT DEFAULT (datetime('now'))
-    );
-    CREATE TABLE IF NOT EXISTS cashBoxes (id TEXT PRIMARY KEY, name TEXT NOT NULL, currency TEXT DEFAULT 'YER', balance REAL DEFAULT 0, createdAt TEXT DEFAULT (datetime('now')));
-    CREATE TABLE IF NOT EXISTS banks (id TEXT PRIMARY KEY, name TEXT NOT NULL, accountNumber TEXT DEFAULT '', currency TEXT DEFAULT 'YER', balance REAL DEFAULT 0, createdAt TEXT DEFAULT (datetime('now')));
-    CREATE TABLE IF NOT EXISTS customers (id TEXT PRIMARY KEY, name TEXT NOT NULL, phone TEXT DEFAULT '', address TEXT DEFAULT '', groupId TEXT DEFAULT '', currency TEXT DEFAULT 'YER', balance REAL DEFAULT 0, creditLimit REAL DEFAULT 0, createdAt TEXT DEFAULT (datetime('now')));
-    CREATE TABLE IF NOT EXISTS suppliers (id TEXT PRIMARY KEY, name TEXT NOT NULL, phone TEXT DEFAULT '', address TEXT DEFAULT '', currency TEXT DEFAULT 'YER', balance REAL DEFAULT 0, createdAt TEXT DEFAULT (datetime('now')));
-    CREATE TABLE IF NOT EXISTS warehouses (id TEXT PRIMARY KEY, name TEXT NOT NULL, location TEXT DEFAULT '', createdAt TEXT DEFAULT (datetime('now')));
-    CREATE TABLE IF NOT EXISTS items (id TEXT PRIMARY KEY, name TEXT NOT NULL, code TEXT DEFAULT '', unit TEXT DEFAULT 'حبة', categoryId TEXT, brandId TEXT, cost REAL DEFAULT 0, price REAL DEFAULT 0, quantity REAL DEFAULT 0, minQuantity REAL DEFAULT 0, createdAt TEXT DEFAULT (datetime('now')));
-    CREATE TABLE IF NOT EXISTS currencies (id TEXT PRIMARY KEY, code TEXT UNIQUE, name TEXT NOT NULL, symbol TEXT DEFAULT '', rate REAL DEFAULT 1, isDefault INTEGER DEFAULT 0, createdAt TEXT DEFAULT (datetime('now')));
-    CREATE TABLE IF NOT EXISTS journal_entries (id TEXT PRIMARY KEY, number TEXT, date TEXT, description TEXT, totalDebit REAL DEFAULT 0, totalCredit REAL DEFAULT 0, isPosted INTEGER DEFAULT 0, createdAt TEXT DEFAULT (datetime('now')));
+    CREATE TABLE IF NOT EXISTS accounts (id TEXT PRIMARY KEY, code TEXT, name TEXT NOT NULL, type TEXT, parentId TEXT DEFAULT '', currency TEXT DEFAULT 'YER', balance REAL DEFAULT 0, isActive INTEGER DEFAULT 1);
+    CREATE TABLE IF NOT EXISTS cashBoxes (id TEXT PRIMARY KEY, name TEXT NOT NULL, currency TEXT DEFAULT 'YER', balance REAL DEFAULT 0);
+    CREATE TABLE IF NOT EXISTS banks (id TEXT PRIMARY KEY, name TEXT NOT NULL, accountNumber TEXT DEFAULT '', currency TEXT DEFAULT 'YER', balance REAL DEFAULT 0);
+    CREATE TABLE IF NOT EXISTS ewallets (id TEXT PRIMARY KEY, name TEXT, phone TEXT, balance REAL DEFAULT 0);
+    CREATE TABLE IF NOT EXISTS customers (id TEXT PRIMARY KEY, name TEXT NOT NULL, phone TEXT DEFAULT '', address TEXT DEFAULT '', balance REAL DEFAULT 0);
+    CREATE TABLE IF NOT EXISTS suppliers (id TEXT PRIMARY KEY, name TEXT NOT NULL, phone TEXT DEFAULT '', address TEXT DEFAULT '', balance REAL DEFAULT 0);
+    CREATE TABLE IF NOT EXISTS items (id TEXT PRIMARY KEY, name TEXT NOT NULL, code TEXT DEFAULT '', unit TEXT DEFAULT 'حبة', cost REAL DEFAULT 0, price REAL DEFAULT 0, quantity REAL DEFAULT 0);
+    CREATE TABLE IF NOT EXISTS currencies (id TEXT PRIMARY KEY, code TEXT UNIQUE, name TEXT NOT NULL, symbol TEXT DEFAULT '', rate REAL DEFAULT 1, isDefault INTEGER DEFAULT 0);
+    CREATE TABLE IF NOT EXISTS journal_entries (id TEXT PRIMARY KEY, number TEXT, date TEXT, description TEXT, totalDebit REAL DEFAULT 0, totalCredit REAL DEFAULT 0, isPosted INTEGER DEFAULT 0);
     CREATE TABLE IF NOT EXISTS journal_items (id TEXT PRIMARY KEY, entryId TEXT, accountId TEXT, debit REAL DEFAULT 0, credit REAL DEFAULT 0, description TEXT);
-    CREATE TABLE IF NOT EXISTS salesInvoices (id TEXT PRIMARY KEY, number TEXT, date TEXT, customerId TEXT, type TEXT DEFAULT 'cash', subtotal REAL DEFAULT 0, tax REAL DEFAULT 0, total REAL DEFAULT 0, paid REAL DEFAULT 0, remaining REAL DEFAULT 0, createdAt TEXT DEFAULT (datetime('now')));
-    CREATE TABLE IF NOT EXISTS purchaseInvoices (id TEXT PRIMARY KEY, number TEXT, date TEXT, supplierId TEXT, type TEXT DEFAULT 'cash', subtotal REAL DEFAULT 0, total REAL DEFAULT 0, paid REAL DEFAULT 0, remaining REAL DEFAULT 0, createdAt TEXT DEFAULT (datetime('now')));
+    CREATE TABLE IF NOT EXISTS salesInvoices (id TEXT PRIMARY KEY, number TEXT, date TEXT, customerId TEXT, type TEXT DEFAULT 'cash', total REAL DEFAULT 0);
+    CREATE TABLE IF NOT EXISTS purchaseInvoices (id TEXT PRIMARY KEY, number TEXT, date TEXT, supplierId TEXT, type TEXT DEFAULT 'cash', total REAL DEFAULT 0);
     CREATE TABLE IF NOT EXISTS units (id TEXT PRIMARY KEY, name TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS categories (id TEXT PRIMARY KEY, name TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS brands (id TEXT PRIMARY KEY, name TEXT NOT NULL);
-    CREATE TABLE IF NOT EXISTS salesReps (id TEXT PRIMARY KEY, name TEXT NOT NULL, phone TEXT DEFAULT '', monthlyTarget REAL DEFAULT 0, totalSales REAL DEFAULT 0);
     CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
-    CREATE TABLE IF NOT EXISTS notifications (id TEXT PRIMARY KEY, type TEXT, title TEXT, message TEXT, read INTEGER DEFAULT 0, createdAt TEXT DEFAULT (datetime('now')));
   `);
 }
 
-async function seedMainAccounts(db: SQLite.SQLiteDatabase) {
-  try {
-    const existing = await db.getAllAsync("SELECT * FROM accounts WHERE parentId = '' AND isActive = 1");
-    if (existing.length >= 5) return; // موجودة مسبقاً
-
-    const mainAccounts = [
-      { id: 'acc-assets', code: '1', name: 'الأصول', type: 'أصل', balance: 0 },
-      { id: 'acc-liabilities', code: '2', name: 'الخصوم', type: 'خصم', balance: 0 },
-      { id: 'acc-equity', code: '3', name: 'حقوق الملكية', type: 'ملكية', balance: 0 },
-      { id: 'acc-revenues', code: '4', name: 'الإيرادات', type: 'إيراد', balance: 0 },
-      { id: 'acc-expenses', code: '5', name: 'المصروفات', type: 'مصروف', balance: 0 },
-    ];
-
-    for (const acc of mainAccounts) {
-      await db.runAsync(
-        'INSERT INTO accounts (id, code, name, type, parentId, currency, balance, isActive) VALUES (?,?,?,?,?,?,?,1)',
-        [acc.id, acc.code, acc.name, acc.type, '', 'YER', acc.balance]
-      );
-    }
-
-    // إضافة حسابات فرعية أساسية
-    const subAccounts = [
-      { id: 'acc-cash', code: '11', name: 'الصندوق', type: 'أصل', parentId: 'acc-assets' },
-      { id: 'acc-banks', code: '12', name: 'البنوك', type: 'أصل', parentId: 'acc-assets' },
-      { id: 'acc-customers', code: '13', name: 'العملاء', type: 'أصل', parentId: 'acc-assets' },
-      { id: 'acc-inventory', code: '14', name: 'المخزون', type: 'أصل', parentId: 'acc-assets' },
-      { id: 'acc-suppliers', code: '21', name: 'الموردين', type: 'خصم', parentId: 'acc-liabilities' },
-      { id: 'acc-tax', code: '22', name: 'الضرائب المستحقة', type: 'خصم', parentId: 'acc-liabilities' },
-      { id: 'acc-capital', code: '31', name: 'رأس المال', type: 'ملكية', parentId: 'acc-equity' },
-      { id: 'acc-sales', code: '41', name: 'المبيعات', type: 'إيراد', parentId: 'acc-revenues' },
-      { id: 'acc-purchases', code: '51', name: 'المشتريات', type: 'مصروف', parentId: 'acc-expenses' },
-      { id: 'acc-salaries', code: '52', name: 'الرواتب والأجور', type: 'مصروف', parentId: 'acc-expenses' },
-      { id: 'acc-rent', code: '53', name: 'الإيجارات', type: 'مصروف', parentId: 'acc-expenses' },
-    ];
-
-    for (const acc of subAccounts) {
-      await db.runAsync(
-        'INSERT INTO accounts (id, code, name, type, parentId, currency, balance, isActive) VALUES (?,?,?,?,?,?,?,1)',
-        [acc.id, acc.code, acc.name, acc.type, acc.parentId, 'YER', 0]
-      );
-    }
-
-    console.log('✅ تم إنشاء الحسابات الرئيسية والفرعية الأساسية');
-  } catch (e) {
-    console.log('Seed accounts error:', e);
+async function seedAccounts(db: SQLite.SQLiteDatabase) {
+  // حذف كل الحسابات القديمة
+  await db.execAsync('DELETE FROM accounts');
+  
+  // 5 حسابات رئيسية
+  const mains = [
+    ['1','1','الأصول','أصل',''],
+    ['2','2','الخصوم','خصم',''],
+    ['3','3','حقوق الملكية','ملكية',''],
+    ['4','4','الإيرادات','إيراد',''],
+    ['5','5','المصروفات','مصروف',''],
+  ];
+  for (const m of mains) {
+    await db.runAsync('INSERT INTO accounts (id, code, name, type, parentId, balance, isActive) VALUES (?,?,?,?,?,0,1)', m);
   }
+
+  // حسابات فرعية (أبناء)
+  const subs = [
+    ['11','11','الأصول المتداولة','أصل','1'],
+    ['12','12','الأصول الثابتة','أصل','1'],
+    ['21','21','الخصوم المتداولة','خصم','2'],
+    ['22','22','الخصوم طويلة الأجل','خصم','2'],
+    ['31','31','رأس المال','ملكية','3'],
+    ['41','41','المبيعات','إيراد','4'],
+    ['51','51','المشتريات','مصروف','5'],
+  ];
+  for (const s of subs) {
+    await db.runAsync('INSERT INTO accounts (id, code, name, type, parentId, balance, isActive) VALUES (?,?,?,?,?,0,1)', s);
+  }
+
+  // حسابات تحليلية (أحفاد) - حسابات تشغيلية
+  const grands = [
+    ['111','111','الصندوق','أصل','11'],
+    ['112','112','البنوك','أصل','11'],
+    ['113','113','المحافظ الإلكترونية','أصل','11'],
+    ['114','114','العملاء','أصل','11'],
+    ['115','115','المخزون','أصل','11'],
+    ['121','121','مباني وعقارات','أصل','12'],
+    ['122','122','سيارات ومركبات','أصل','12'],
+    ['211','211','الموردين','خصم','21'],
+    ['212','212','الضرائب المستحقة','خصم','21'],
+    ['311','311','رأس المال المدفوع','ملكية','31'],
+    ['312','312','الأرباح المحتجزة','ملكية','31'],
+    ['411','411','مبيعات نقدية','إيراد','41'],
+    ['412','412','مبيعات آجلة','إيراد','41'],
+    ['511','511','مشتريات بضائع','مصروف','51'],
+    ['512','512','رواتب وأجور','مصروف','51'],
+    ['513','513','إيجارات','مصروف','51'],
+    ['514','514','مصاريف تشغيلية','مصروف','51'],
+  ];
+  for (const g of grands) {
+    await db.runAsync('INSERT INTO accounts (id, code, name, type, parentId, balance, isActive) VALUES (?,?,?,?,?,0,1)', g);
+  }
+  
+  console.log('✅ تم إنشاء شجرة الحسابات: 5 رئيسية + 7 فرعية + 18 تحليلية');
 }

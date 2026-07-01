@@ -5,219 +5,132 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAccountStore } from '../../src/store/useAccountStore';
 import { ControlButtons, ControlHeader } from '../../src/components/ui/ControlButtons';
 
+const ICONS: any = {
+  'الأصول':'🏢','الخصوم':'💳','حقوق الملكية':'👑','الإيرادات':'💰','المصروفات':'💸',
+  'الأصول المتداولة':'💎','الأصول الثابتة':'🏗️','الخصوم المتداولة':'📋','الخصوم طويلة الأجل':'📑',
+  'رأس المال':'🏛️','المبيعات':'🛒','المشتريات':'📥',
+  'الصندوق':'💵','البنوك':'🏦','المحافظ الإلكترونية':'📱','العملاء':'👥','المخزون':'📦',
+  'مباني وعقارات':'🏠','سيارات ومركبات':'🚗','الموردين':'🏭','الضرائب المستحقة':'🧾',
+  'رأس المال المدفوع':'💷','الأرباح المحتجزة':'📊','مبيعات نقدية':'💵','مبيعات آجلة':'📋',
+  'مشتريات بضائع':'📦','رواتب وأجور':'👷','إيجارات':'🏠','مصاريف تشغيلية':'🔧'
+};
+
 export default function AccountsScreen() {
   const router = useRouter(); const insets = useSafeAreaInsets();
   const { accounts, loading, loadAccounts, addAccount, updateAccount, removeAccount, getMainAccounts, getSubAccounts, generateCode } = useAccountStore();
   
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedType, setSelectedType] = useState('الكل');
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', code: '', type: 'أصل', balance: '0', parentId: '' });
   const [parentName, setParentName] = useState('');
-  const types = ['أصل', 'خصم', 'إيراد', 'مصروف', 'ملكية'];
+  const types = ['الكل', 'أصل', 'خصم', 'إيراد', 'مصروف', 'ملكية'];
 
   useFocusEffect(useCallback(() => { loadAccounts(); }, []));
 
-  const mainAccounts = getMainAccounts();
+  const getColor = (t: string) => ({ 'أصل':'#D4AF37','خصم':'#EF4444','ملكية':'#F59E0B','إيراد':'#10B981','مصروف':'#3B82F6' }[t] || '#6B7280');
 
-  const openAdd = (parentId: string = '', parentName: string = '') => {
-    setEditMode(false); setSelectedId(null);
-    setFormData({ name: '', code: '', type: 'أصل', balance: '0', parentId });
-    setParentName(parentName);
-    setShowModal(true);
+  const openAdd = (parentId='', parentName='', parentType='أصل') => {
+    setEditMode(false); setFormData({ name:'', code:'', type:parentType, balance:'0', parentId }); setParentName(parentName); setShowModal(true);
   };
-
-  const openEdit = (account: any) => {
-    setEditMode(true); setSelectedId(account.id);
-    setFormData({ name: account.name, code: account.code, type: account.type, balance: String(account.balance || 0), parentId: account.parentId || '' });
-    const parent = accounts.find((a: any) => a.id === account.parentId);
-    setParentName(parent ? parent.name : '');
-    setShowModal(true);
+  const openEdit = (acc: any) => {
+    setEditMode(true); setFormData({ name:acc.name, code:acc.code, type:acc.type, balance:String(acc.balance||0), parentId:acc.parentId||'' });
+    setParentName(acc.parentId ? (accounts.find((a:any)=>a.id===acc.parentId)?.name||'') : ''); setShowModal(true);
   };
-
-  const handleDelete = (account: any) => {
-    const subs = getSubAccounts(account.id);
-    if (subs.length > 0) { Alert.alert('تنبيه', 'لا يمكن حذف حساب له حسابات فرعية'); return; }
-    Alert.alert('حذف', `حذف "${account.name}"؟`, [
-      { text: 'إلغاء' },
-      { text: 'حذف', onPress: () => removeAccount(account.id) }
-    ]);
+  const handleDelete = (acc: any) => {
+    if (getSubAccounts(acc.id).length > 0) { Alert.alert('تنبيه','لا يمكن حذف حساب له فروع'); return; }
+    Alert.alert('حذف',`حذف "${acc.name}"؟`,[{text:'إلغاء'},{text:'حذف',onPress:()=>removeAccount(acc.id)}]);
   };
-
   const handleSave = async () => {
-    if (!formData.name.trim()) { Alert.alert('خطأ', 'أدخل اسم الحساب'); return; }
-    const code = formData.code || generateCode(formData.parentId || undefined);
-    const data = { ...formData, code, balance: parseFloat(formData.balance) || 0 };
-    
-    if (editMode && selectedId) {
-      await updateAccount(selectedId, data);
-    } else {
-      const result = await addAccount(data);
-      if (result === null) { Alert.alert('تنبيه', 'الحساب موجود مسبقاً'); return; }
-    }
+    if (!formData.name.trim()) { Alert.alert('خطأ','أدخل اسم الحساب'); return; }
+    const code = formData.code || generateCode(formData.parentId||undefined);
+    if (editMode) await updateAccount(formData.parentId?accounts.find((a:any)=>a.id===formData.parentId)?.id:'', {name:formData.name, balance:parseFloat(formData.balance)||0});
+    else { const r = await addAccount({...formData, code, balance:parseFloat(formData.balance)||0}); if (r===null) { Alert.alert('تنبيه','الحساب موجود'); return; } }
     setShowModal(false);
   };
 
-  const getIcon = (name: string) => {
-    if (name.includes('أصول')) return '🏢';
-    if (name.includes('خصوم')) return '💳';
-    if (name.includes('ملكية')) return '👑';
-    if (name.includes('إيراد')) return '💰';
-    if (name.includes('مصروف')) return '💸';
-    if (name.includes('صندوق')) return '💵';
-    if (name.includes('بنك')) return '🏦';
-    if (name.includes('عملاء')) return '👥';
-    if (name.includes('مخزون')) return '📦';
-    if (name.includes('مورد')) return '🏭';
-    if (name.includes('ضريبة')) return '🧾';
-    if (name.includes('رأس مال')) return '🏛️';
-    if (name.includes('مبيع')) return '🛒';
-    if (name.includes('مشتري')) return '📥';
-    if (name.includes('رواتب')) return '👷';
-    if (name.includes('إيجار')) return '🏠';
-    return '📋';
-  };
-
-  const getTypeColor = (t: string) => ({ 'أصل': '#D4AF37', 'خصم': '#EF4444', 'إيراد': '#10B981', 'مصروف': '#3B82F6', 'ملكية': '#F59E0B' }[t] || '#6B7280');
-
+  // بناء شجرة من 3 مستويات
+  const mainAccounts = getMainAccounts().filter((m:any) => selectedType==='الكل' || m.type===selectedType);
   const displayList: any[] = [];
   mainAccounts.forEach((main: any) => {
     const matchMain = !searchQuery || main.name.includes(searchQuery) || main.code.includes(searchQuery);
-    const subs = getSubAccounts(main.id).filter((s: any) => !searchQuery || s.name.includes(searchQuery) || s.code.includes(searchQuery));
-    if (matchMain || subs.length > 0) {
-      displayList.push({ type: 'main', data: main, show: matchMain });
-      subs.forEach((sub: any) => displayList.push({ type: 'sub', data: sub, parentName: main.name }));
-    }
+    const children = getSubAccounts(main.id);
+    const childItems: any[] = [];
+    children.forEach((child: any) => {
+      const matchChild = !searchQuery || child.name.includes(searchQuery) || child.code.includes(searchQuery);
+      const grands = getSubAccounts(child.id);
+      const grandItems: any[] = [];
+      grands.forEach((grand: any) => {
+        const matchGrand = !searchQuery || grand.name.includes(searchQuery) || grand.code.includes(searchQuery);
+        grandItems.push({ level:3, data:grand, show:matchGrand||!searchQuery, color:getColor(grand.type) });
+      });
+      childItems.push({ level:2, data:child, show:matchChild||!searchQuery, children:grandItems, color:getColor(child.type) });
+    });
+    displayList.push({ level:1, data:main, show:matchMain||!searchQuery, children:childItems, color:getColor(main.type) });
   });
+
+  const flatten = (items: any[]): any[] => {
+    let flat: any[] = [];
+    items.forEach(i => { if (i.show) flat.push(i); if (i.children) flat = [...flat, ...flatten(i.children)]; });
+    return flat;
+  };
 
   return (
     <View style={[st.c, { paddingTop: insets.top }]}><StatusBar barStyle="light-content" />
       <ControlHeader title="دليل الحسابات" count={accounts.length} onBack={() => router.back()} onAdd={() => openAdd()} />
       <ControlButtons showSearch showRefresh showPrint showExport onRefresh={loadAccounts} />
       <TextInput style={st.si} placeholder="🔍 بحث..." placeholderTextColor="#94a3b8" value={searchQuery} onChangeText={setSearchQuery} />
-      
-      <View style={st.info}><Text style={st.infoText}>🏗️ الرئيسية للتجميع | 📋 الفرعية للترحيل والعمليات</Text></View>
-
-      {loading ? <Text style={st.loading}>⏳ جاري التحميل...</Text> :
-        <FlatList data={displayList} keyExtractor={(i, idx) => i.data.id + idx}
-          renderItem={({ item }) => {
-            if (item.type === 'main' && item.show) {
-              const main = item.data;
-              const subsCount = getSubAccounts(main.id).length;
-              const totalBalance = getSubAccounts(main.id).reduce((s: number, sub: any) => s + (sub.balance || 0), 0);
-              return (
-                <TouchableOpacity style={[st.mainCard, { borderRightColor: getTypeColor(main.type), borderRightWidth: 5 }]} 
-                  onPress={() => openEdit(main)} onLongPress={() => handleDelete(main)}>
-                  <View style={st.row1}>
-                    <Text style={st.icon}>{getIcon(main.name)}</Text>
-                    <View style={{ flex: 1, marginLeft: 10 }}>
-                      <Text style={st.name}>{main.name}</Text>
-                      <Text style={st.code}>{main.code}</Text>
-                    </View>
-                    <View style={[st.badge, { backgroundColor: getTypeColor(main.type) + '20' }]}>
-                      <Text style={[st.badgeText, { color: getTypeColor(main.type) }]}>{main.type}</Text>
-                    </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{maxHeight:40,marginBottom:8}} contentContainerStyle={{flexDirection:'row',paddingHorizontal:12,gap:6}}>
+        {types.map(t => <TouchableOpacity key={t} style={[st.fb, selectedType===t&&st.fba]} onPress={()=>setSelectedType(t)}><Text style={[st.ft, selectedType===t&&st.fta]}>{t}</Text></TouchableOpacity>)}
+      </ScrollView>
+      {loading ? <Text style={{color:'#D4AF37',textAlign:'center',marginTop:40}}>⏳ جاري التحميل...</Text> :
+        <FlatList data={flatten(displayList)} keyExtractor={(i,idx)=>i.data.id+idx}
+          renderItem={({item}) => {
+            const acc = item.data; const subs = getSubAccounts(acc.id); const ml = (item.level-1)*20;
+            return (
+              <TouchableOpacity style={[item.level===1?st.l1:item.level===2?st.l2:st.l3, {marginLeft:ml, borderRightColor:item.color, borderRightWidth:item.level===1?5:item.level===2?3:2}]}
+                onPress={()=>openEdit(acc)} onLongPress={()=>handleDelete(acc)}>
+                <View style={{flexDirection:'row',alignItems:'center'}}>
+                  <Text style={{fontSize:item.level===1?28:item.level===2?22:18}}>{ICONS[acc.name]||'📋'}</Text>
+                  <View style={{flex:1,marginLeft:8}}>
+                    <Text style={{color:'#FFF',fontSize:item.level===1?16:item.level===2?14:12,fontWeight:'bold',textAlign:'right'}}>{acc.name}</Text>
+                    <Text style={{color:'#94a3b8',fontSize:9,textAlign:'right'}}>كود: {acc.code}</Text>
                   </View>
-                  <View style={st.row2}>
-                    <Text style={st.balance}>المجموع: {totalBalance.toLocaleString()} ﷼</Text>
-                    <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-                      <Text style={st.count}>{subsCount} حساب فرعي</Text>
-                      <TouchableOpacity style={st.addSub} onPress={() => openAdd(main.id, main.name)}>
-                        <Text style={st.addSubText}>+</Text>
-                      </TouchableOpacity>
-                    </View>
+                  <View style={{alignItems:'flex-end',marginRight:4}}>
+                    <Text style={{color:(acc.balance||0)>=0?'#10B981':'#EF4444',fontSize:13,fontWeight:'bold'}}>{(acc.balance||0).toLocaleString()} ﷼</Text>
+                    {subs.length>0 && <Text style={{color:'#94a3b8',fontSize:9}}>{subs.length} فرعي</Text>}
                   </View>
-                </TouchableOpacity>
-              );
-            }
-            if (item.type === 'sub') {
-              const sub = item.data;
-              return (
-                <TouchableOpacity key={sub.id} style={st.subCard}
-                  onPress={() => openEdit(sub)} onLongPress={() => handleDelete(sub)}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Text style={st.subIcon}>{getIcon(sub.name)}</Text>
-                    <View style={{ flex: 1, marginLeft: 8 }}>
-                      <Text style={st.subName}>{sub.name}</Text>
-                      <Text style={st.subCode}>{sub.code}</Text>
-                    </View>
-                    <Text style={[st.subBalance, { color: sub.balance >= 0 ? '#10B981' : '#EF4444' }]}>
-                      {sub.balance?.toLocaleString()} ﷼
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            }
-            return null;
-          }}
-          ListEmptyComponent={
-            <View style={st.emptyView}>
-              <Text style={st.emptyIcon}>📚</Text>
-              <Text style={st.empty}>لا توجد حسابات</Text>
-              <TouchableOpacity style={st.emptyBtn} onPress={() => openAdd()}>
-                <Text style={st.emptyBtnText}>+ إضافة حساب رئيسي</Text>
+                  <TouchableOpacity style={{backgroundColor:'#10B98120',width:26,height:26,borderRadius:13,justifyContent:'center',alignItems:'center'}} onPress={()=>openAdd(acc.id,acc.name,acc.type)}>
+                    <Text style={{color:'#10B981',fontSize:14,fontWeight:'bold'}}>+</Text>
+                  </TouchableOpacity>
+                </View>
               </TouchableOpacity>
-            </View>
-          }
-          contentContainerStyle={{ padding: 16 }}
+            );
+          }}
+          ListEmptyComponent={<View style={{alignItems:'center',marginTop:60}}><Text style={{fontSize:64}}>📚</Text><Text style={{color:'#666',fontSize:16,marginVertical:16}}>لا توجد حسابات</Text></View>}
+          contentContainerStyle={{padding:12}}
         />
       }
-
       <Modal visible={showModal} animationType="slide" transparent>
-        <View style={st.mo}><View style={st.mc}><View style={st.mh}><Text style={st.mt}>{editMode ? '✏️ تعديل حساب' : parentName ? `➕ فرعي تحت: ${parentName}` : '📁 حساب رئيسي جديد'}</Text><TouchableOpacity onPress={() => setShowModal(false)}><Text style={st.mx}>✕</Text></TouchableOpacity></View>
-        <ScrollView style={st.mb}>
-          <Text style={st.fl}>اسم الحساب *</Text><TextInput style={st.fi} value={formData.name} onChangeText={v => setFormData({ ...formData, name: v })} placeholder="اسم الحساب" placeholderTextColor="#666" />
-          <Text style={st.fl}>الكود (تلقائي)</Text><TextInput style={[st.fi, { color: '#D4AF37' }]} value={formData.code || generateCode(formData.parentId || undefined)} editable={false} />
-          {!formData.parentId && (
-            <>
-              <Text style={st.fl}>النوع</Text>
-              <View style={st.typeRow}>{types.map(t => <TouchableOpacity key={t} style={[st.typeBtn, formData.type === t && st.typeBtnA]} onPress={() => setFormData({ ...formData, type: t })}><Text style={[st.typeText, formData.type === t && st.typeTextA]}>{t}</Text></TouchableOpacity>)}</View>
-            </>
-          )}
-          <Text style={st.fl}>الرصيد الافتتاحي</Text><TextInput style={st.fi} value={formData.balance} onChangeText={v => setFormData({ ...formData, balance: v })} keyboardType="numeric" placeholder="0" placeholderTextColor="#666" />
-          <TouchableOpacity style={st.sb} onPress={handleSave}><Text style={st.sbt}>💾 {editMode ? 'تحديث' : 'حفظ'}</Text></TouchableOpacity>
+        <View style={st.mo}><View style={st.mc}><View style={{flexDirection:'row',justifyContent:'space-between',padding:16,borderBottomWidth:1,borderBottomColor:'#2a3550'}}><Text style={{color:'#D4AF37',fontSize:16,fontWeight:'bold'}}>{editMode?'✏️ تعديل':parentName?`➕ فرعي: ${parentName}`:'📁 رئيسي جديد'}</Text><TouchableOpacity onPress={()=>setShowModal(false)}><Text style={{color:'#EF4444',fontSize:22}}>✕</Text></TouchableOpacity></View>
+        <ScrollView style={{padding:16}}>
+          <Text style={{color:'#94a3b8',fontSize:13,marginBottom:6,marginTop:12}}>اسم الحساب *</Text><TextInput style={{backgroundColor:'#0A1128',borderRadius:10,padding:12,color:'#FFF',borderWidth:1,borderColor:'#2a3550',textAlign:'right'}} value={formData.name} onChangeText={v=>setFormData({...formData,name:v})} />
+          <Text style={{color:'#94a3b8',fontSize:13,marginBottom:6,marginTop:12}}>الكود</Text><TextInput style={{backgroundColor:'#0A1128',borderRadius:10,padding:12,color:'#D4AF37',borderWidth:1,borderColor:'#2a3550',textAlign:'right'}} value={formData.code||generateCode(formData.parentId||undefined)} editable={false} />
+          {!formData.parentId && (<><Text style={{color:'#94a3b8',fontSize:13,marginBottom:6,marginTop:12}}>النوع</Text><View style={{flexDirection:'row',flexWrap:'wrap',gap:6}}>{types.filter(t=>t!=='الكل').map(t=><TouchableOpacity key={t} style={[st.tb,formData.type===t&&st.tba]} onPress={()=>setFormData({...formData,type:t})}><Text style={[st.tt,formData.type===t&&st.tta]}>{t}</Text></TouchableOpacity>)}</View></>)}
+          <Text style={{color:'#94a3b8',fontSize:13,marginBottom:6,marginTop:12}}>الرصيد</Text><TextInput style={{backgroundColor:'#0A1128',borderRadius:10,padding:12,color:'#FFF',borderWidth:1,borderColor:'#2a3550',textAlign:'right'}} value={formData.balance} onChangeText={v=>setFormData({...formData,balance:v})} keyboardType="numeric" />
+          <TouchableOpacity style={{backgroundColor:'#D4AF37',borderRadius:12,padding:14,alignItems:'center',marginTop:20,marginBottom:20}} onPress={handleSave}><Text style={{color:'#0A1128',fontSize:16,fontWeight:'bold'}}>💾 {editMode?'تحديث':'حفظ'}</Text></TouchableOpacity>
         </ScrollView></View></View>
       </Modal>
     </View>
   );
 }
-
 const st = StyleSheet.create({
-  c: { flex: 1, backgroundColor: '#0A1128' },
-  si: { marginHorizontal: 16, marginBottom: 8, padding: 12, backgroundColor: '#16213E', borderRadius: 10, color: '#FFF', borderWidth: 1, borderColor: '#2a3550', textAlign: 'right' },
-  info: { marginHorizontal: 16, marginBottom: 8, padding: 8, backgroundColor: '#D4AF3710', borderRadius: 8 },
-  infoText: { color: '#D4AF37', fontSize: 10, textAlign: 'center' },
-  loading: { color: '#D4AF37', textAlign: 'center', marginTop: 40, fontSize: 16 },
-  emptyView: { alignItems: 'center', marginTop: 60 },
-  emptyIcon: { fontSize: 64, marginBottom: 12 },
-  empty: { color: '#666', fontSize: 16, marginBottom: 16 },
-  emptyBtn: { backgroundColor: '#D4AF37', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20 },
-  emptyBtnText: { color: '#000', fontWeight: 'bold' },
-  mainCard: { backgroundColor: '#16213E', borderRadius: 14, padding: 16, marginBottom: 8, borderWidth: 1, borderColor: '#2a3550' },
-  subCard: { backgroundColor: '#1a2240', borderRadius: 10, padding: 12, marginLeft: 20, marginBottom: 6, borderWidth: 1, borderColor: '#2a3550' },
-  row1: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  row2: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#2a3550', paddingTop: 8 },
-  icon: { fontSize: 28 }, subIcon: { fontSize: 22 },
-  name: { color: '#FFF', fontSize: 18, fontWeight: 'bold', textAlign: 'right' },
-  subName: { color: '#FFF', fontSize: 15, fontWeight: 'bold', textAlign: 'right' },
-  code: { color: '#94a3b8', fontSize: 10, textAlign: 'right' }, subCode: { color: '#94a3b8', fontSize: 9, textAlign: 'right' },
-  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }, badgeText: { fontSize: 10, fontWeight: 'bold' },
-  balance: { color: '#D4AF37', fontSize: 14, fontWeight: 'bold' },
-  subBalance: { fontSize: 15, fontWeight: 'bold' },
-  count: { color: '#94a3b8', fontSize: 10 },
-  addSub: { backgroundColor: '#10B98120', width: 30, height: 30, borderRadius: 15, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#10B981' },
-  addSubText: { color: '#10B981', fontSize: 18, fontWeight: 'bold' },
-  mo: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  mc: { backgroundColor: '#16213E', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '80%' },
-  mh: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#2a3550' },
-  mt: { color: '#D4AF37', fontSize: 16, fontWeight: 'bold', flex: 1 }, mx: { color: '#EF4444', fontSize: 22 }, mb: { padding: 16 },
-  fl: { color: '#94a3b8', fontSize: 13, marginBottom: 6, marginTop: 12 },
-  fi: { backgroundColor: '#0A1128', borderRadius: 10, padding: 12, color: '#FFF', borderWidth: 1, borderColor: '#2a3550', fontSize: 14, textAlign: 'right' },
-  typeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  typeBtn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8, backgroundColor: '#0A1128', borderWidth: 1, borderColor: '#2a3550' },
-  typeBtnA: { borderColor: '#D4AF37', backgroundColor: '#D4AF3720' },
-  typeText: { color: '#94a3b8', fontSize: 12 }, typeTextA: { color: '#D4AF37', fontWeight: 'bold' },
-  sb: { backgroundColor: '#D4AF37', borderRadius: 12, padding: 14, alignItems: 'center', marginTop: 20, marginBottom: 20 },
-  sbt: { color: '#0A1128', fontSize: 16, fontWeight: 'bold' },
+  c:{flex:1,backgroundColor:'#0A1128'},si:{marginHorizontal:12,marginBottom:6,padding:12,backgroundColor:'#16213E',borderRadius:10,color:'#FFF',borderWidth:1,borderColor:'#2a3550',textAlign:'right'},
+  fb:{paddingHorizontal:14,paddingVertical:7,borderRadius:20,backgroundColor:'#16213E',borderWidth:1,borderColor:'#2a3550'},fba:{backgroundColor:'#D4AF3720',borderColor:'#D4AF37'},ft:{color:'#94a3b8',fontSize:12},fta:{color:'#D4AF37',fontWeight:'bold'},
+  l1:{backgroundColor:'#16213E',borderRadius:14,padding:14,marginBottom:6,borderWidth:1,borderColor:'#2a3550'},
+  l2:{backgroundColor:'#192140',borderRadius:11,padding:12,marginBottom:5,borderWidth:1,borderColor:'#2a3550'},
+  l3:{backgroundColor:'#1c2545',borderRadius:9,padding:10,marginBottom:4,borderWidth:1,borderColor:'#2a3550'},
+  mo:{flex:1,backgroundColor:'rgba(0,0,0,0.7)',justifyContent:'flex-end'},mc:{backgroundColor:'#16213E',borderTopLeftRadius:20,borderTopRightRadius:20,maxHeight:'80%'},
+  tb:{paddingVertical:8,paddingHorizontal:14,borderRadius:8,backgroundColor:'#0A1128',borderWidth:1,borderColor:'#2a3550'},tba:{borderColor:'#D4AF37',backgroundColor:'#D4AF3720'},tt:{color:'#94a3b8',fontSize:12},tta:{color:'#D4AF37',fontWeight:'bold'},
 });
