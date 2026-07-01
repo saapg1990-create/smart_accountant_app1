@@ -15,7 +15,7 @@ const ICONS: any = {
 
 export default function AccountsScreen() {
   const router = useRouter(); const insets = useSafeAreaInsets();
-  const { accounts, loading, loadAccounts, addAccount, updateAccount, removeAccount, getMainAccounts, getSubAccounts, generateCode } = useAccountStore();
+  const { accounts, loading, loadAccounts, addAccount, updateAccount, removeAccount, generateCode } = useAccountStore();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState('الكل');
@@ -24,6 +24,7 @@ export default function AccountsScreen() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', code: '', type: 'أصل', balance: '0', parentId: '' });
   const [parentName, setParentName] = useState('');
+  const [refreshKey, setRefreshKey] = useState(0);
   const types = ['الكل', 'أصل', 'خصم', 'إيراد', 'مصروف', 'ملكية'];
 
   useFocusEffect(useCallback(() => { loadAccounts(); }, []));
@@ -44,7 +45,8 @@ export default function AccountsScreen() {
   };
 
   const handleDelete = (acc: any) => {
-    if (getSubAccounts(acc.id).length > 0) { Alert.alert('تنبيه','لا يمكن حذف حساب له فروع'); return; }
+    const subs = accounts.filter((a: any) => a.parentId === acc.id);
+    if (subs.length > 0) { Alert.alert('تنبيه','لا يمكن حذف حساب له فروع'); return; }
     Alert.alert('حذف',`حذف "${acc.name}"؟`,[{text:'إلغاء'},{text:'حذف',onPress:()=>removeAccount(acc.id)}]);
   };
 
@@ -62,75 +64,61 @@ export default function AccountsScreen() {
     setTimeout(() => { loadAccounts(); setRefreshKey(prev => prev + 1); }, 300);
   };
 
-  // بناء القائمة: الرئيسية + الفرعية + الأحفاد مباشرة من accounts
-  const buildList = () => {
-    const result: any[] = [];
-    const mainAccounts = accounts.filter((a: any) => {
-      const pid = a.parentId;
-      return (!pid || pid === '' || pid === 'null') && (selectedType === 'الكل' || a.type === selectedType);
-    });
+  // ✅ بناء القائمة مباشرة من accounts
+  const mainAccounts = accounts.filter((a: any) => {
+    const pid = a.parentId;
+    return (!pid || pid === '' || pid === 'null') && (selectedType === 'الكل' || a.type === selectedType);
+  });
 
-    mainAccounts.forEach((main: any) => {
-      if (!searchQuery || main.name.includes(searchQuery) || main.code.includes(searchQuery)) {
-        result.push({ level: 1, data: main, color: getColor(main.type) });
-      }
+  const displayList: any[] = [];
+  mainAccounts.forEach((main: any) => {
+    const matchMain = !searchQuery || main.name.includes(searchQuery) || main.code.includes(searchQuery);
+    if (matchMain) displayList.push({ level: 1, data: main, color: getColor(main.type) });
+    
+    const children = accounts.filter((a: any) => a.parentId === main.id);
+    children.forEach((child: any) => {
+      const matchChild = !searchQuery || child.name.includes(searchQuery) || child.code.includes(searchQuery);
+      if (matchChild) displayList.push({ level: 2, data: child, color: getColor(child.type) });
       
-      const children = accounts.filter((a: any) => a.parentId === main.id);
-      children.forEach((child: any) => {
-        if (!searchQuery || child.name.includes(searchQuery) || child.code.includes(searchQuery)) {
-          result.push({ level: 2, data: child, color: getColor(child.type) });
-        }
-        
-        const grands = accounts.filter((a: any) => a.parentId === child.id);
-        grands.forEach((grand: any) => {
-          if (!searchQuery || grand.name.includes(searchQuery) || grand.code.includes(searchQuery)) {
-            result.push({ level: 3, data: grand, color: getColor(grand.type) });
-          }
-        });
+      const grands = accounts.filter((a: any) => a.parentId === child.id);
+      grands.forEach((grand: any) => {
+        const matchGrand = !searchQuery || grand.name.includes(searchQuery) || grand.code.includes(searchQuery);
+        if (matchGrand) displayList.push({ level: 3, data: grand, color: getColor(grand.type) });
       });
     });
-    
-    return result;
-  };
-
-  const [refreshKey, setRefreshKey] = useState(0);
-  const displayList = buildList();
+  });
 
   return (
     <View style={[st.c, { paddingTop: insets.top }]}><StatusBar barStyle="light-content" />
       <ControlHeader title="دليل الحسابات" count={accounts.length} onBack={() => router.back()} onAdd={() => openAdd()} />
-      <ControlButtons showSearch showRefresh showPrint showExport onRefresh={loadAccounts} />
+      <ControlButtons showSearch showRefresh showPrint showExport onRefresh={() => { loadAccounts(); setRefreshKey(prev => prev + 1); }} />
       <TextInput style={st.si} placeholder="🔍 بحث..." placeholderTextColor="#94a3b8" value={searchQuery} onChangeText={setSearchQuery} />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{maxHeight:40,marginBottom:8}} contentContainerStyle={{flexDirection:'row',paddingHorizontal:12,gap:6}}>
+      <ScrollView horizontal style={{maxHeight:40,marginBottom:8}} contentContainerStyle={{flexDirection:'row',paddingHorizontal:12,gap:6}}>
         {types.map(t => <TouchableOpacity key={t} style={[st.fb, selectedType===t&&st.fba]} onPress={()=>setSelectedType(t)}><Text style={[st.ft, selectedType===t&&st.fta]}>{t}</Text></TouchableOpacity>)}
       </ScrollView>
-      {loading ? <Text style={{color:'#D4AF37',textAlign:'center',marginTop:40}}>⏳ جاري التحميل...</Text> :
-        <FlatList key={refreshKey} data={displayList} keyExtractor={(i,idx)=>i.data.id+idx+refreshKey}
-          renderItem={({item}) => {
-            const acc = item.data; const ml = (item.level-1)*20;
-            return (
-              <TouchableOpacity style={[item.level===1?st.l1:item.level===2?st.l2:st.l3, {marginLeft:ml, borderRightColor:item.color, borderRightWidth:item.level===1?5:item.level===2?3:2}]}
-                onPress={()=>openEdit(acc)} onLongPress={()=>handleDelete(acc)}>
-                <View style={{flexDirection:'row',alignItems:'center'}}>
-                  <Text style={{fontSize:item.level===1?28:item.level===2?22:18}}>{ICONS[acc.name]||'📋'}</Text>
-                  <View style={{flex:1,marginLeft:8}}>
-                    <Text style={{color:'#FFF',fontSize:item.level===1?16:item.level===2?14:12,fontWeight:'bold',textAlign:'right'}}>{acc.name}</Text>
-                    <Text style={{color:'#94a3b8',fontSize:9,textAlign:'right'}}>كود: {acc.code}</Text>
-                  </View>
-                  <View style={{alignItems:'flex-end',marginRight:4}}>
-                    <Text style={{color:(acc.balance||0)>=0?'#10B981':'#EF4444',fontSize:13,fontWeight:'bold'}}>{(acc.balance||0).toLocaleString()} ﷼</Text>
-                  </View>
-                  <TouchableOpacity style={{backgroundColor:'#10B98120',width:26,height:26,borderRadius:13,justifyContent:'center',alignItems:'center'}} onPress={()=>openAdd(acc.id,acc.name,acc.type)}>
-                    <Text style={{color:'#10B981',fontSize:14,fontWeight:'bold'}}>+</Text>
-                  </TouchableOpacity>
+      <FlatList key={refreshKey} data={displayList} keyExtractor={(i,idx)=>i.data.id+idx}
+        renderItem={({item}) => {
+          const acc = item.data; const ml = (item.level-1)*20;
+          return (
+            <TouchableOpacity style={[item.level===1?st.l1:item.level===2?st.l2:st.l3, {marginLeft:ml, borderRightColor:item.color, borderRightWidth:item.level===1?5:item.level===2?3:2}]}
+              onPress={()=>openEdit(acc)} onLongPress={()=>handleDelete(acc)}>
+              <View style={{flexDirection:'row',alignItems:'center'}}>
+                <Text style={{fontSize:item.level===1?28:item.level===2?22:18}}>{ICONS[acc.name]||'📋'}</Text>
+                <View style={{flex:1,marginLeft:8}}>
+                  <Text style={{color:'#FFF',fontSize:item.level===1?16:item.level===2?14:12,fontWeight:'bold',textAlign:'right'}}>{acc.name}</Text>
+                  <Text style={{color:'#94a3b8',fontSize:9,textAlign:'right'}}>كود: {acc.code}</Text>
                 </View>
-              </TouchableOpacity>
-            );
-          }}
-          ListEmptyComponent={<View style={{alignItems:'center',marginTop:60}}><Text style={{fontSize:64}}>📚</Text><Text style={{color:'#666',fontSize:16}}>لا توجد حسابات</Text></View>}
-          contentContainerStyle={{padding:12}}
-        />
-      }
+                <Text style={{color:(acc.balance||0)>=0?'#10B981':'#EF4444',fontSize:13,fontWeight:'bold',marginRight:4}}>{(acc.balance||0).toLocaleString()} ﷼</Text>
+                <TouchableOpacity style={{backgroundColor:'#10B98120',width:26,height:26,borderRadius:13,justifyContent:'center',alignItems:'center'}} onPress={()=>openAdd(acc.id,acc.name,acc.type)}>
+                  <Text style={{color:'#10B981',fontSize:14,fontWeight:'bold'}}>+</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          );
+        }}
+        ListEmptyComponent={<View style={{alignItems:'center',marginTop:60}}><Text style={{fontSize:64}}>📚</Text><Text style={{color:'#666',fontSize:16}}>لا توجد حسابات</Text></View>}
+        contentContainerStyle={{padding:12}}
+      />
       <Modal visible={showModal} animationType="slide" transparent>
         <View style={st.mo}><View style={st.mc}><View style={{flexDirection:'row',justifyContent:'space-between',padding:16,borderBottomWidth:1,borderBottomColor:'#2a3550'}}><Text style={{color:'#D4AF37',fontSize:16,fontWeight:'bold'}}>{editMode?'✏️ تعديل':parentName?`➕ فرعي: ${parentName}`:'📁 رئيسي جديد'}</Text><TouchableOpacity onPress={()=>setShowModal(false)}><Text style={{color:'#EF4444',fontSize:22}}>✕</Text></TouchableOpacity></View>
         <ScrollView style={{padding:16}}>
