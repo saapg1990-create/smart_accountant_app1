@@ -9,7 +9,7 @@ import { useAccountStore } from '../../src/store/useAccountStore';
 export default function BanksScreen() {
   const router = useRouter(); const insets = useSafeAreaInsets();
   const { db } = useDatabase();
-  const { loadAccounts, addAccount } = useAccountStore();
+  const { addAccount, loadAccounts, generateCode } = useAccountStore();
   const [banks, setBanks] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
@@ -28,11 +28,14 @@ export default function BanksScreen() {
     const bankId = 'bank-' + Date.now();
     const bal = parseFloat(balance) || 0;
     await db.runAsync('INSERT INTO banks (id, name, accountNumber, balance) VALUES (?,?,?,?)', [bankId, name, accountNumber, bal]);
-    // إضافة حساب في الدليل
-    await addAccount({ id: bankId, name, type: 'أصل', balance: bal, code: 'B' + Date.now().toString().slice(-4) });
+    
+    // ✅ إضافة حساب تحت "الأصول المتداولة" (id=11)
+    const code = generateCode('11');
+    await addAccount({ id: bankId, name, code, type: 'أصل', parentId: '112', balance: bal });
+    
     await loadBanks(); await loadAccounts();
     setName(''); setAccountNumber(''); setBalance('0'); setShowForm(false);
-    Alert.alert('✅', 'تم إضافة البنك وإنشاء حسابه في الدليل');
+    Alert.alert('✅', 'تم إضافة البنك تحت الأصول المتداولة');
   };
 
   const deleteBank = async (id: string) => {
@@ -51,10 +54,4 @@ export default function BanksScreen() {
     </View>
   );
 }
-const st = StyleSheet.create({
-  c:{flex:1,backgroundColor:'#0A1128'},h:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',padding:16},bb:{fontSize:24,color:'#D4AF37'},t:{color:'#D4AF37',fontSize:20,fontWeight:'bold'},ab:{fontSize:28,color:'#D4AF37'},
-  f:{padding:16,backgroundColor:'#16213E',margin:12,borderRadius:12},l:{color:'#9A9B3B',fontSize:14,marginTop:8},i:{backgroundColor:'#0A1128',color:'#FFF',padding:10,borderRadius:8,marginTop:4},
-  s:{backgroundColor:'#D4AF37',padding:12,borderRadius:8,alignItems:'center',marginTop:12},st:{color:'#000',fontWeight:'bold'},
-  card:{flexDirection:'row',alignItems:'center',backgroundColor:'#16213E',padding:14,marginHorizontal:12,marginVertical:5,borderRadius:12},n:{color:'#FFF',fontSize:16,fontWeight:'bold'},d:{color:'#9A9B3B',fontSize:12},
-  e:{color:'#666',textAlign:'center',marginTop:40},
-});
+const st = StyleSheet.create({c:{flex:1,backgroundColor:'#0A1128'},h:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',padding:16},bb:{fontSize:24,color:'#D4AF37'},t:{color:'#D4AF37',fontSize:20,fontWeight:'bold'},ab:{fontSize:28,color:'#D4AF37'},f:{padding:16,backgroundColor:'#16213E',margin:12,borderRadius:12},l:{color:'#9A9B3B',fontSize:14,marginTop:8},i:{backgroundColor:'#0A1128',color:'#FFF',padding:10,borderRadius:8,marginTop:4},s:{backgroundColor:'#D4AF37',padding:12,borderRadius:8,alignItems:'center',marginTop:12},st:{color:'#000',fontWeight:'bold'},card:{flexDirection:'row',alignItems:'center',backgroundColor:'#16213E',padding:14,marginHorizontal:12,marginVertical:5,borderRadius:12},n:{color:'#FFF',fontSize:16,fontWeight:'bold'},d:{color:'#9A9B3B',fontSize:12},e:{color:'#666',textAlign:'center',marginTop:40}});
