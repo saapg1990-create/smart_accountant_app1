@@ -23,6 +23,7 @@ export default function AccountsScreen() {
   const [selectedType, setSelectedType] = useState('الكل');
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', code: '', type: 'أصل', balance: '0', parentId: '' });
   const [parentName, setParentName] = useState('');
   const types = ['الكل', 'أصل', 'خصم', 'إيراد', 'مصروف', 'ملكية'];
@@ -32,42 +33,63 @@ export default function AccountsScreen() {
   const getColor = (t: string) => ({ 'أصل':'#D4AF37','خصم':'#EF4444','ملكية':'#F59E0B','إيراد':'#10B981','مصروف':'#3B82F6' }[t] || '#6B7280');
 
   const openAdd = (parentId='', parentName='', parentType='أصل') => {
-    setEditMode(false); setFormData({ name:'', code:'', type:parentType, balance:'0', parentId }); setParentName(parentName); setShowModal(true);
+    setEditMode(false); setEditingId(null);
+    setFormData({ name:'', code:'', type:parentType, balance:'0', parentId }); 
+    setParentName(parentName); setShowModal(true);
   };
+
   const openEdit = (acc: any) => {
-    setEditMode(true); setFormData({ name:acc.name, code:acc.code, type:acc.type, balance:String(acc.balance||0), parentId:acc.parentId||'' });
-    setParentName(acc.parentId ? (accounts.find((a:any)=>a.id===acc.parentId)?.name||'') : ''); setShowModal(true);
+    setEditMode(true); setEditingId(acc.id);
+    setFormData({ name:acc.name, code:acc.code, type:acc.type, balance:String(acc.balance||0), parentId:acc.parentId||'' });
+    setParentName(acc.parentId ? (accounts.find((a:any)=>a.id===acc.parentId)?.name||'') : ''); 
+    setShowModal(true);
   };
+
   const handleDelete = (acc: any) => {
     if (getSubAccounts(acc.id).length > 0) { Alert.alert('تنبيه','لا يمكن حذف حساب له فروع'); return; }
     Alert.alert('حذف',`حذف "${acc.name}"؟`,[{text:'إلغاء'},{text:'حذف',onPress:()=>removeAccount(acc.id)}]);
   };
+
   const handleSave = async () => {
     if (!formData.name.trim()) { Alert.alert('خطأ','أدخل اسم الحساب'); return; }
-    const code = formData.code || generateCode(formData.parentId||undefined);
-    if (editMode) await updateAccount(formData.parentId?accounts.find((a:any)=>a.id===formData.parentId)?.id:'', {name:formData.name, balance:parseFloat(formData.balance)||0});
-    else { const r = await addAccount({...formData, code, balance:parseFloat(formData.balance)||0}); if (r===null) { Alert.alert('تنبيه','الحساب موجود'); return; } }
-    setShowModal(false);
+    const code = formData.code || generateCode(formData.parentId || undefined);
+    const data = { ...formData, code, balance: parseFloat(formData.balance) || 0 };
+    
+    if (editMode && editingId) {
+      await updateAccount(editingId, data);
+    } else {
+      const result = await addAccount(data);
+      if (result === null) { Alert.alert('تنبيه','الحساب موجود مسبقاً'); return; }
+    }
+    setShowModal(false); setTimeout(() => { loadAccounts(); }, 200); await loadAccounts();
   };
 
-  // بناء شجرة من 3 مستويات
   const mainAccounts = getMainAccounts().filter((m:any) => selectedType==='الكل' || m.type===selectedType);
   const displayList: any[] = [];
+  
   mainAccounts.forEach((main: any) => {
     const matchMain = !searchQuery || main.name.includes(searchQuery) || main.code.includes(searchQuery);
     const children = getSubAccounts(main.id);
+    let showMain = matchMain;
     const childItems: any[] = [];
+    
     children.forEach((child: any) => {
       const matchChild = !searchQuery || child.name.includes(searchQuery) || child.code.includes(searchQuery);
       const grands = getSubAccounts(child.id);
+      let showChild = matchChild;
       const grandItems: any[] = [];
+      
       grands.forEach((grand: any) => {
         const matchGrand = !searchQuery || grand.name.includes(searchQuery) || grand.code.includes(searchQuery);
+        if (matchGrand) { showChild = true; showMain = true; }
         grandItems.push({ level:3, data:grand, show:matchGrand||!searchQuery, color:getColor(grand.type) });
       });
+      
+      if (matchChild || grandItems.some((g:any)=>g.show)) { showMain = true; }
       childItems.push({ level:2, data:child, show:matchChild||!searchQuery, children:grandItems, color:getColor(child.type) });
     });
-    displayList.push({ level:1, data:main, show:matchMain||!searchQuery, children:childItems, color:getColor(main.type) });
+    
+    displayList.push({ level:1, data:main, show:showMain||!searchQuery, children:childItems, color:getColor(main.type) });
   });
 
   const flatten = (items: any[]): any[] => {
