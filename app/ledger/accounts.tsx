@@ -7,12 +7,10 @@ import { ControlButtons, ControlHeader } from '../../src/components/ui/ControlBu
 
 const ICONS: any = {
   'الأصول':'🏢','الخصوم':'💳','حقوق الملكية':'👑','الإيرادات':'💰','المصروفات':'💸',
-  'الأصول المتداولة':'💎','الأصول الثابتة':'🏗️','الخصوم المتداولة':'📋','الخصوم طويلة الأجل':'📑',
+  'الأصول المتداولة':'💎','الأصول الثابتة':'🏗️','الخصوم المتداولة':'📋',
   'رأس المال':'🏛️','المبيعات':'🛒','المشتريات':'📥',
   'الصندوق':'💵','البنوك':'🏦','المحافظ الإلكترونية':'📱','العملاء':'👥','المخزون':'📦',
-  'مباني وعقارات':'🏠','سيارات ومركبات':'🚗','الموردين':'🏭','الضرائب المستحقة':'🧾',
-  'رأس المال المدفوع':'💷','الأرباح المحتجزة':'📊','مبيعات نقدية':'💵','مبيعات آجلة':'📋',
-  'مشتريات بضائع':'📦','رواتب وأجور':'👷','إيجارات':'🏠','مصاريف تشغيلية':'🔧'
+  'الموردين':'🏭','الضرائب المستحقة':'🧾','رواتب وأجور':'👷','إيجارات':'🏠'
 };
 
 export default function AccountsScreen() {
@@ -58,45 +56,45 @@ export default function AccountsScreen() {
     if (editMode && editingId) {
       await updateAccount(editingId, data);
     } else {
-      const result = await addAccount(data);
-      if (result === null) { Alert.alert('تنبيه','الحساب موجود مسبقاً'); return; }
+      await addAccount(data);
     }
-    setShowModal(false); setTimeout(() => { loadAccounts(); }, 200); await loadAccounts();
+    setShowModal(false);
+    setTimeout(() => { loadAccounts(); setRefreshKey(prev => prev + 1); }, 300);
   };
 
-  const mainAccounts = getMainAccounts().filter((m:any) => selectedType==='الكل' || m.type===selectedType);
-  const displayList: any[] = [];
-  
-  mainAccounts.forEach((main: any) => {
-    const matchMain = !searchQuery || main.name.includes(searchQuery) || main.code.includes(searchQuery);
-    const children = getSubAccounts(main.id);
-    let showMain = matchMain;
-    const childItems: any[] = [];
-    
-    children.forEach((child: any) => {
-      const matchChild = !searchQuery || child.name.includes(searchQuery) || child.code.includes(searchQuery);
-      const grands = getSubAccounts(child.id);
-      let showChild = matchChild;
-      const grandItems: any[] = [];
+  // بناء القائمة: الرئيسية + الفرعية + الأحفاد مباشرة من accounts
+  const buildList = () => {
+    const result: any[] = [];
+    const mainAccounts = accounts.filter((a: any) => {
+      const pid = a.parentId;
+      return (!pid || pid === '' || pid === 'null') && (selectedType === 'الكل' || a.type === selectedType);
+    });
+
+    mainAccounts.forEach((main: any) => {
+      if (!searchQuery || main.name.includes(searchQuery) || main.code.includes(searchQuery)) {
+        result.push({ level: 1, data: main, color: getColor(main.type) });
+      }
       
-      grands.forEach((grand: any) => {
-        const matchGrand = !searchQuery || grand.name.includes(searchQuery) || grand.code.includes(searchQuery);
-        if (matchGrand) { showChild = true; showMain = true; }
-        grandItems.push({ level:3, data:grand, show:matchGrand||!searchQuery, color:getColor(grand.type) });
+      const children = accounts.filter((a: any) => a.parentId === main.id);
+      children.forEach((child: any) => {
+        if (!searchQuery || child.name.includes(searchQuery) || child.code.includes(searchQuery)) {
+          result.push({ level: 2, data: child, color: getColor(child.type) });
+        }
+        
+        const grands = accounts.filter((a: any) => a.parentId === child.id);
+        grands.forEach((grand: any) => {
+          if (!searchQuery || grand.name.includes(searchQuery) || grand.code.includes(searchQuery)) {
+            result.push({ level: 3, data: grand, color: getColor(grand.type) });
+          }
+        });
       });
-      
-      if (matchChild || grandItems.some((g:any)=>g.show)) { showMain = true; }
-      childItems.push({ level:2, data:child, show:matchChild||!searchQuery, children:grandItems, color:getColor(child.type) });
     });
     
-    displayList.push({ level:1, data:main, show:showMain||!searchQuery, children:childItems, color:getColor(main.type) });
-  });
-
-  const flatten = (items: any[]): any[] => {
-    let flat: any[] = [];
-    items.forEach(i => { if (i.show) flat.push(i); if (i.children) flat = [...flat, ...flatten(i.children)]; });
-    return flat;
+    return result;
   };
+
+  const [refreshKey, setRefreshKey] = useState(0);
+  const displayList = buildList();
 
   return (
     <View style={[st.c, { paddingTop: insets.top }]}><StatusBar barStyle="light-content" />
@@ -107,9 +105,9 @@ export default function AccountsScreen() {
         {types.map(t => <TouchableOpacity key={t} style={[st.fb, selectedType===t&&st.fba]} onPress={()=>setSelectedType(t)}><Text style={[st.ft, selectedType===t&&st.fta]}>{t}</Text></TouchableOpacity>)}
       </ScrollView>
       {loading ? <Text style={{color:'#D4AF37',textAlign:'center',marginTop:40}}>⏳ جاري التحميل...</Text> :
-        <FlatList data={flatten(displayList)} keyExtractor={(i,idx)=>i.data.id+idx}
+        <FlatList key={refreshKey} data={displayList} keyExtractor={(i,idx)=>i.data.id+idx+refreshKey}
           renderItem={({item}) => {
-            const acc = item.data; const subs = getSubAccounts(acc.id); const ml = (item.level-1)*20;
+            const acc = item.data; const ml = (item.level-1)*20;
             return (
               <TouchableOpacity style={[item.level===1?st.l1:item.level===2?st.l2:st.l3, {marginLeft:ml, borderRightColor:item.color, borderRightWidth:item.level===1?5:item.level===2?3:2}]}
                 onPress={()=>openEdit(acc)} onLongPress={()=>handleDelete(acc)}>
@@ -121,7 +119,6 @@ export default function AccountsScreen() {
                   </View>
                   <View style={{alignItems:'flex-end',marginRight:4}}>
                     <Text style={{color:(acc.balance||0)>=0?'#10B981':'#EF4444',fontSize:13,fontWeight:'bold'}}>{(acc.balance||0).toLocaleString()} ﷼</Text>
-                    {subs.length>0 && <Text style={{color:'#94a3b8',fontSize:9}}>{subs.length} فرعي</Text>}
                   </View>
                   <TouchableOpacity style={{backgroundColor:'#10B98120',width:26,height:26,borderRadius:13,justifyContent:'center',alignItems:'center'}} onPress={()=>openAdd(acc.id,acc.name,acc.type)}>
                     <Text style={{color:'#10B981',fontSize:14,fontWeight:'bold'}}>+</Text>
@@ -130,7 +127,7 @@ export default function AccountsScreen() {
               </TouchableOpacity>
             );
           }}
-          ListEmptyComponent={<View style={{alignItems:'center',marginTop:60}}><Text style={{fontSize:64}}>📚</Text><Text style={{color:'#666',fontSize:16,marginVertical:16}}>لا توجد حسابات</Text></View>}
+          ListEmptyComponent={<View style={{alignItems:'center',marginTop:60}}><Text style={{fontSize:64}}>📚</Text><Text style={{color:'#666',fontSize:16}}>لا توجد حسابات</Text></View>}
           contentContainerStyle={{padding:12}}
         />
       }

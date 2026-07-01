@@ -93,6 +93,8 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
 
   // ✅ أهم تعديل: جلب الأبناء
   getSubAccounts: (parentId: string) => {
+    console.log("getSubAccounts called with:", parentId);
+    console.log("All accounts:", get().accounts.map((a: Account) => ({id: a.id, name: a.name, pid: a.parentId})));
     const { accounts } = get();
     if (!parentId) return [];
     return accounts.filter((a: Account) => {
