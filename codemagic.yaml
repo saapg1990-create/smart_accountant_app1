@@ -1,30 +1,17 @@
 workflows:
-  smart-accountant-android:
-    name: المحاسب الذكي - Android
+  smart-accountant:
+    name: المحاسب الذكي
     max_build_duration: 60
     environment:
       node: 18.16.0
       vars:
-        EXPO_TOKEN: $EXPO_TOKEN
+        EAS_NO_VCS: "1"
     scripts:
       - name: Install dependencies
         script: npm install
-      - name: Build Android APK
-        script: npx eas build -p android --profile preview --non-interactive
+      - name: Install EAS CLI
+        script: npm install -g eas-cli
+      - name: Build APK
+        script: eas build -p android --profile preview --non-interactive
     artifacts:
       - build/*.apk
-
-  smart-accountant-ios:
-    name: المحاسب الذكي - iOS
-    max_build_duration: 60
-    environment:
-      node: 18.16.0
-      vars:
-        EXPO_TOKEN: $EXPO_TOKEN
-    scripts:
-      - name: Install dependencies
-        script: npm install
-      - name: Build iOS
-        script: npx eas build -p ios --profile preview --non-interactive
-    artifacts:
-      - build/*.ipa
