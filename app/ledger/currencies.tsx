@@ -71,7 +71,7 @@ export default function CurrenciesScreen() {
   return (
     <View style={[st.c, { paddingTop: insets.top }]}>
       <ControlHeader title="العملات" count={currencies.length} onBack={() => router.back()} onAdd={openAdd} />
-      <ControlButtons showAdd showEdit showDelete showSearch showPrint showRefresh showExport onAdd={openAdd} onEdit={openEdit} onDelete={handleDelete} onRefresh={() => {}} />
+      <ControlButtons showAdd showEdit showDelete showSearch showPrint showRefresh showExport onAdd={openAdd} onEdit={openEdit} onDelete={handleDelete} onRefresh={() => loadAll()} />
       <TextInput style={st.si} placeholder="🔍 بحث..." placeholderTextColor="#94a3b8" value={searchQuery} onChangeText={setSearchQuery} />
       
       <TouchableOpacity style={st.rateBtn} onPress={openRateUpdate}>

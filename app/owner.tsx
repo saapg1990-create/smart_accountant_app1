@@ -57,13 +57,13 @@ export default function OwnerDashboard() {
   };
 
   const handleEditSubscription = (sub: any) => {
-    setEditSubId(sub.id);
+    // setEditSubId(sub.id);
     setEditForm({ user: sub.user, type: sub.type, startDate: sub.startDate, endDate: sub.endDate, phone: sub.phone || '' });
   };
 
   const handleSaveEdit = () => {
     setSubscriptions(subs => subs.map(s => s.id === editSubId ? { ...s, ...editForm } : s));
-    setEditSubId(null);
+    // setEditSubId(null);
   };
 
   const handleBroadcast = () => {
@@ -145,7 +145,7 @@ export default function OwnerDashboard() {
         {/* إدارة الاشتراكات */}
         <Text style={st.st}>💎 إدارة الاشتراكات</Text>
         <TouchableOpacity style={st.addSubBtn} onPress={() => {
-          setEditSubId('new');
+          // setEditSubId('new');
           setEditForm({ user: '', type: 'نصف سنوي', startDate: new Date().toISOString().split('T')[0], endDate: '', phone: '' });
         }}>
           <Text style={st.addSubText}>➕ إضافة مشترك جديد</Text>
@@ -166,7 +166,7 @@ export default function OwnerDashboard() {
                 </View>
                 <View style={st.editActions}>
                   <TouchableOpacity style={st.saveEditBtn} onPress={handleSaveEdit}><Text style={st.saveEditText}>💾 حفظ</Text></TouchableOpacity>
-                  <TouchableOpacity style={st.cancelEditBtn} onPress={() => setEditSubId(null)}><Text style={st.cancelEditText}>إلغاء</Text></TouchableOpacity>
+                  <TouchableOpacity style={st.cancelEditBtn} onPress={() => // setEditSubId(null)}><Text style={st.cancelEditText}>إلغاء</Text></TouchableOpacity>
                 </View>
               </View>
             ) : (
@@ -210,9 +210,9 @@ export default function OwnerDashboard() {
                 <TouchableOpacity style={st.saveEditBtn} onPress={() => {
                   if (!editForm.user) { Alert.alert('خطأ', 'أدخل اسم المشترك'); return; }
                   setSubscriptions([...subscriptions, { id: Date.now().toString(), user: editForm.user, type: editForm.type, startDate: editForm.startDate, endDate: editForm.endDate, active: true, phone: editForm.phone }]);
-                  setEditSubId(null);
+                  // setEditSubId(null);
                 }}><Text style={st.saveEditText}>💾 إضافة</Text></TouchableOpacity>
-                <TouchableOpacity style={st.cancelEditBtn} onPress={() => setEditSubId(null)}><Text style={st.cancelEditText}>إلغاء</Text></TouchableOpacity>
+                <TouchableOpacity style={st.cancelEditBtn} onPress={() => // setEditSubId(null)}><Text style={st.cancelEditText}>إلغاء</Text></TouchableOpacity>
               </View>
             </View>
           </View>

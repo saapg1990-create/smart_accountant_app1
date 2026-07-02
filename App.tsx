@@ -1,17 +1,10 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { LoginScreen } from './src/screens/auth';
 
 export default function App() {
-  return (
-    <View style={styles.container}>
-      <LoginScreen />
-    </View>
-  );
+  return <View style={styles.container} />;
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1, backgroundColor: '#0A1128' },
 });

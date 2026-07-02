@@ -15,7 +15,7 @@ export default function CashBoxesScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
-  const [formData, setFormData] = useState({ name: '', currency: 'YER', balance: '0' });
+  const [formData, setFormData] = useState({ name: '', currency: 'YER', balance: '' });
 
   useFocusEffect(useCallback(() => { loadAccounts(); }, []));
 
@@ -45,13 +45,13 @@ export default function CashBoxesScreen() {
     
     await loadAccounts();
     setShowModal(false); 
-    setFormData({ name: '', currency: 'YER', balance: '0' });
+    setFormData({ name: '', currency: 'YER', balance: '' });
     Alert.alert('✅', 'تم إضافة الصندوق وإضافته تحت الأصول المتداولة');
   };
 
   return (
     <View style={[st.c, { paddingTop: insets.top }]}><StatusBar barStyle="light-content" />
-      <ControlHeader title="الصناديق" count={cashBoxes.length} onBack={() => router.back()} onAdd={() => { setFormData({ name: '', currency: 'YER', balance: '0' }); setShowModal(true); }} />
+      <ControlHeader title="الصناديق" count={cashBoxes.length} onBack={() => router.back()} onAdd={() => { setFormData({ name: '', currency: 'YER', balance: '' }); setShowModal(true); }} />
       <TextInput style={st.si} placeholder="🔍 بحث..." placeholderTextColor="#94a3b8" value={searchQuery} onChangeText={setSearchQuery} />
       <View style={st.sm}><Text style={st.sl}>إجمالي النقدية</Text><Text style={st.sv}>{totalBalance.toLocaleString()} ﷼</Text></View>
       {filtered.length === 0 ? <View style={st.e}><Text style={st.et}>لا توجد صناديق</Text></View> :

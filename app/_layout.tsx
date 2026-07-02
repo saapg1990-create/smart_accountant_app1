@@ -46,7 +46,10 @@ export default function RootLayout() {
           <Stack.Screen name="sales/item-sales" />
           <Stack.Screen name="sales/summary" />
           <Stack.Screen name="sales/rep-performance" />
+          <Stack.Screen name="sales/rep-motivation" />
           <Stack.Screen name="reports/index" />
+          <Stack.Screen name="reports/alerts" />
+          <Stack.Screen name="inventory/qty-report" />
           <Stack.Screen name="voice" />
           <Stack.Screen name="settings" />
           <Stack.Screen name="owner" />
@@ -57,3 +60,4 @@ export default function RootLayout() {
     </AppProvider>
   );
 }
+// سيتم إضافة المسارات

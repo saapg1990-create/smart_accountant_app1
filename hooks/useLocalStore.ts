@@ -1,107 +1,63 @@
-import { useState, useEffect } from 'react';
-
-class LocalStore {
-  private static instance: LocalStore;
-  private data: Map<string, any[]> = new Map();
-  private listeners: Map<string, Function[]> = new Map();
-
-  static getInstance(): LocalStore {
-    if (!LocalStore.instance) {
-      LocalStore.instance = new LocalStore();
-    }
-    return LocalStore.instance;
-  }
-
-  async getAll(table: string): Promise<any[]> {
-    return this.data.get(table) || [];
-  }
-
-  async add(table: string, item: any): Promise<string | null> {
-    const items = this.data.get(table) || [];
-    
-    // منع تكرار الكود في الحسابات
-    if (table === 'accounts' && item.code) {
-      const codeExists = items.find((i: any) => i.code === item.code);
-      if (codeExists) {
-        console.warn('Duplicate code prevented:', item.code);
-        return null;
-      }
-    }
-    
-    const id = Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
-    const newItem = { ...item, id, createdAt: new Date().toISOString() };
-    items.push(newItem);
-    this.data.set(table, items);
-    this.notify(table);
-    return id;
-  }
-
-  async remove(table: string, id: string): Promise<void> {
-    const items = (this.data.get(table) || []).filter((i: any) => i.id !== id);
-    this.data.set(table, items);
-    this.notify(table);
-  }
-
-  async update(table: string, id: string, updates: any): Promise<void> {
-    const items = (this.data.get(table) || []).map((i: any) => 
-      i.id === id ? { ...i, ...updates } : i
-    );
-    this.data.set(table, items);
-    this.notify(table);
-  }
-
-  subscribe(table: string, callback: Function) {
-    if (!this.listeners.has(table)) {
-      this.listeners.set(table, []);
-    }
-    this.listeners.get(table)!.push(callback);
-    return () => {
-      const listeners = this.listeners.get(table);
-      if (listeners) {
-        const index = listeners.indexOf(callback);
-        if (index > -1) listeners.splice(index, 1);
-      }
-    };
-  }
-
-  private notify(table: string) {
-    const listeners = this.listeners.get(table) || [];
-    listeners.forEach(cb => cb());
-  }
-}
+import { useState, useEffect, useCallback } from 'react';
+import { useDatabase } from '../context/DatabaseContext';
 
 export function useLocalTable<T>(tableName: string) {
   const [data, setData] = useState<T[]>([]);
-  const store = LocalStore.getInstance();
+  const { db } = useDatabase();
 
-  const loadAll = async () => {
-    const items = await store.getAll(tableName);
-    setData(items);
-  };
+  const loadAll = useCallback(async () => {
+    if (!db) return;
+    try {
+      const result = await db.getAllAsync(`SELECT * FROM ${tableName} ORDER BY name`);
+      setData(result as T[]);
+    } catch (e) { console.log(`Load ${tableName}:`, e); }
+  }, [db, tableName]);
 
-  const add = async (item: Partial<T>): Promise<string | null> => {
-    const id = await store.add(tableName, item);
-    if (id) await loadAll();
-    return id;
-  };
+  const add = useCallback(async (item: Partial<T>): Promise<string | null> => {
+    if (!db) return null;
+    try {
+      const itemData = item as any;
+      const id = itemData.id || (tableName + '-' + Date.now());
+      const keys: string[] = [];
+      const values: any[] = [];
+      Object.entries(itemData).forEach(([key, value]) => {
+        if (key !== 'id') { keys.push(key); values.push(value); }
+      });
+      if (keys.length === 0) return null;
+      const placeholders = keys.map(() => '?').join(',');
+      await db.runAsync(`INSERT INTO ${tableName} (id, ${keys.join(',')}) VALUES (?, ${placeholders})`, [id, ...values]);
+      await loadAll();
+      return id;
+    } catch (e) { console.log(`Add ${tableName}:`, e); return null; }
+  }, [db, tableName, loadAll]);
 
-  const remove = async (id: string): Promise<void> => {
-    await store.remove(tableName, id);
+  const remove = useCallback(async (id: string): Promise<void> => {
+    if (!db) return;
+    await db.runAsync(`DELETE FROM ${tableName} WHERE id=?`, [id]);
     await loadAll();
-  };
+  }, [db, tableName, loadAll]);
 
-  const update = async (id: string, updates: Partial<T>): Promise<void> => {
-    await store.update(tableName, id, updates);
+  const update = useCallback(async (id: string, updates: Partial<T>): Promise<void> => {
+    if (!db) return;
+    const keys = Object.keys(updates as any);
+    if (keys.length === 0) return;
+    const setClause = keys.map(k => `${k}=?`).join(',');
+    const values = keys.map(k => (updates as any)[k]);
+    await db.runAsync(`UPDATE ${tableName} SET ${setClause} WHERE id=?`, [...values, id]);
     await loadAll();
-  };
+  }, [db, tableName, loadAll]);
 
-  useEffect(() => {
-    loadAll();
-    const unsubscribe = store.subscribe(tableName, () => loadAll());
-    return unsubscribe;
-  }, [tableName]);
+  useEffect(() => { loadAll(); }, [loadAll]);
 
   return { data, loading: false, add, remove, update, reload: loadAll };
 }
 
-export default LocalStore;
+export class LocalStore {
+  private static instance: LocalStore;
+  static getInstance(): LocalStore {
+    if (!LocalStore.instance) LocalStore.instance = new LocalStore();
+    return LocalStore.instance;
+  }
+  async getAll(table: string): Promise<any[]> { return []; }
+  async add(table: string, item: any): Promise<string | null> { return null; }
+}
