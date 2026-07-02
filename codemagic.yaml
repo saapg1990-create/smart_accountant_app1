@@ -5,7 +5,7 @@ workflows:
     environment:
       node: 18.16.0
       vars:
-        EAS_NO_VCS: "1"
+        EXPO_TOKEN: $EXPO_TOKEN
     scripts:
       - name: Install dependencies
         script: npm install
