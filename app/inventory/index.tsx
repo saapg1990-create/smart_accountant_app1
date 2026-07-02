@@ -10,7 +10,7 @@ export default function InventoryIndex() {
     ["📦","الأصناف","/inventory/items"],["📋","فاتورة مشتريات","/inventory/purchase-invoice"],
     ["🔄","مردود مشتريات","/inventory/purchase-return"],["📤","صرف مخزون","/inventory/inventory-issue"],
     ["📥","توريد مخزون","/inventory/inventory-receipt"],["🔄","تحويل مخزني","/inventory/warehouse-transfer"],
-    ["📐","وحدات القياس","/inventory/units"],["🏷️","الفئات","/inventory/categories"],
+    ["📐","وحدات القياس","/inventory/units"],["📁","مجموعات مخزنية","/inventory/categories"],
     ["⭐","الماركات","/inventory/brands"],["📊","حركة الأصناف","/inventory/item-movement"]
   ];
   return (

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import * as SQLite from 'expo-sqlite';
 import { setDatabase } from '../src/store/useAccountStore';
+import { dataSync } from '../src/services/DataSync';
 
 const DatabaseContext = createContext<any>(null);
 
@@ -13,9 +14,12 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
       try {
         const database = await SQLite.openDatabaseAsync('accounting.db');
         await createTables(database);
+        await migrateTables(database).catch(() => {});
+        await migrateUnitsTable(database).catch(() => {});
         await seedAccounts(database);
         setDb(database);
         setDatabase(database);
+        dataSync.setDatabase(database);
       } catch (e) {
         console.error('Database init error:', e);
       } finally {
@@ -51,6 +55,9 @@ async function createTables(db: SQLite.SQLiteDatabase) {
     CREATE TABLE IF NOT EXISTS units (id TEXT PRIMARY KEY, name TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS categories (id TEXT PRIMARY KEY, name TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS brands (id TEXT PRIMARY KEY, name TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS salesReps (id TEXT PRIMARY KEY, name TEXT NOT NULL, phone TEXT DEFAULT '');
+    CREATE TABLE IF NOT EXISTS vouchers (id TEXT PRIMARY KEY, number TEXT, type TEXT, voucherType TEXT, date TEXT, sourceName TEXT, accountName TEXT, amount REAL DEFAULT 0, currency TEXT DEFAULT 'YER', localAmount REAL DEFAULT 0);
+    CREATE TABLE IF NOT EXISTS warehouses (id TEXT PRIMARY KEY, name TEXT NOT NULL, location TEXT DEFAULT '');
     CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
   `);
 }
@@ -91,4 +98,29 @@ async function seedAccounts(db: SQLite.SQLiteDatabase) {
   }
 
   console.log('✅ تم إنشاء 5 رئيسية + 7 فرعية + 13 تحليلية');
+}
+
+// دالة لتحديث هيكل جدول الوحدات
+async function migrateUnitsTable(db: any) {
+  try {
+    await db.execAsync('DROP TABLE IF EXISTS units_old');
+    await db.execAsync('ALTER TABLE units RENAME TO units_old');
+    await db.execAsync(`CREATE TABLE IF NOT EXISTS units (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL, parentId TEXT DEFAULT '', 
+      ratio REAL DEFAULT 1, createdAt TEXT DEFAULT (datetime('now'))
+    )`);
+    // محاولة نقل البيانات القديمة
+    const oldData = await db.getAllAsync('SELECT * FROM units_old');
+    for (const row of oldData) {
+      await db.runAsync('INSERT INTO units (id, name) VALUES (?,?)', [row.id, row.name]);
+    }
+    await db.execAsync('DROP TABLE IF EXISTS units_old');
+  } catch(e) { console.log('Migration:', e); }
+}
+
+async function migrateTables(db: any) {
+  try {
+    // إضافة عمود code لجدول item_groups إذا لم يكن موجوداً
+    try { await db.execAsync('ALTER TABLE item_groups ADD COLUMN code TEXT DEFAULT ""'); } catch(e) {}
+  } catch(e) {}
 }
