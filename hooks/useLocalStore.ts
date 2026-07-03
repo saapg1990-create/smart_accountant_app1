@@ -8,7 +8,7 @@ export function useLocalTable<T>(tableName: string) {
   const loadAll = useCallback(async () => {
     if (!db) return;
     try {
-      const result = await db.getAllAsync(`SELECT * FROM ${tableName} ORDER BY 1`);
+      const result = await db.getAllAsync(`SELECT * FROM ${tableName} ORDER BY name`);
       setData(result as T[]);
     } catch (e) { console.log(`Load ${tableName}:`, e); }
   }, [db, tableName]);
