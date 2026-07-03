@@ -1,321 +1,180 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, StatusBar, Alert, Modal, Switch } from 'react-native';
-import { useRouter } from 'expo-router';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, FlatList } from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useDatabase } from '../context/DatabaseContext';
 import { useLocalTable } from '../hooks/useLocalStore';
 
-const MASTER_PASSWORD = 'admin123';
-
-export default function OwnerDashboard() {
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const { data: accounts } = useLocalTable('accounts');
-  const { data: customers } = useLocalTable('customers');
-  const { data: suppliers } = useLocalTable('suppliers');
+export default function OwnerScreen() {
+  const router = useRouter(); const insets = useSafeAreaInsets();
+  const { db } = useDatabase();
   const { data: invoices } = useLocalTable('salesInvoices');
   const { data: purchases } = useLocalTable('purchaseInvoices');
-  const { data: items } = useLocalTable('items');
-  
-  const [isUnlocked, setIsUnlocked] = useState(false);
-  const [password, setPassword] = useState('');
-  const [showGenerateModal, setShowGenerateModal] = useState(false);
-  const [showBroadcastModal, setShowBroadcastModal] = useState(false);
-  const [showUpdateModal, setShowUpdateModal] = useState(false);
-  const [generatedCode, setGeneratedCode] = useState('');
-  const [broadcastMsg, setBroadcastMsg] = useState('');
-  const [subscriptions, setSubscriptions] = useState([
-    { id: '1', user: 'أحمد محمد', type: 'نصف سنوي', startDate: '2026-01-01', endDate: '2026-07-01', active: true, phone: '711111111' },
-    { id: '2', user: 'شركة النور', type: 'سنوي', startDate: '2026-03-15', endDate: '2027-03-15', active: true, phone: '733222222' },
-    { id: '3', user: 'محمد سالم', type: 'نصف سنوي', startDate: '2026-02-01', endDate: '2026-08-01', active: false, phone: '712444444' },
-  ]);
+  const { data: customers } = useLocalTable('customers');
+  const { data: accounts } = useLocalTable('accounts');
+
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [subscriptions, setSubscriptions] = useState<any[]>([]);
+  const [showForm, setShowForm] = useState(false);
   const [editSubId, setEditSubId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ user: '', type: 'نصف سنوي', startDate: '', endDate: '', phone: '' });
+  const [editForm, setEditForm] = useState({ user: '', type: 'شهري', startDate: '', endDate: '', phone: '' });
 
-  const totalSales = (invoices || []).reduce((s: number, i: any) => s + (i.total || 0), 0);
-  const totalPurchases = (purchases || []).reduce((s: number, p: any) => s + (p.total || 0), 0);
-  const activeSubs = subscriptions.filter(s => s.active).length;
+  useFocusEffect(useCallback(() => {
+    loadData();
+  }, [db]));
 
-  const handleUnlock = () => {
-    if (password === MASTER_PASSWORD) { setIsUnlocked(true); setPassword(''); }
-    else { Alert.alert('❌ خطأ', 'كلمة المرور غير صحيحة'); }
+  const loadData = async () => {
+    if (!db) return;
+    try {
+      await db.execAsync(`CREATE TABLE IF NOT EXISTS subscriptions (id TEXT PRIMARY KEY, user TEXT, type TEXT, startDate TEXT, endDate TEXT, phone TEXT, active INTEGER DEFAULT 1)`);
+      const result = await db.getAllAsync('SELECT * FROM subscriptions ORDER BY startDate DESC');
+      setSubscriptions(result);
+    } catch (e) { console.log('Load error:', e); }
   };
 
-  const generateCode = () => {
-    const code = 'ACT-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substr(2, 6).toUpperCase();
-    setGeneratedCode(code);
+  const totalSales = invoices.reduce((s: number, i: any) => s + (i.total || 0), 0);
+  const totalPurchases = purchases.reduce((s: number, i: any) => s + (i.total || 0), 0);
+  const profit = totalSales - totalPurchases;
+
+  const handleSaveSub = async () => {
+    if (!editForm.user.trim()) { Alert.alert('خطأ', 'أدخل اسم المستخدم'); return; }
+    if (!db) return;
+    if (editSubId) {
+      await db.runAsync('UPDATE subscriptions SET user=?, type=?, startDate=?, endDate=?, phone=? WHERE id=?', [editForm.user, editForm.type, editForm.startDate, editForm.endDate, editForm.phone, editSubId]);
+    } else {
+      const id = 'sub-' + Date.now();
+      await db.runAsync('INSERT INTO subscriptions (id, user, type, startDate, endDate, phone) VALUES (?,?,?,?,?,?)', [id, editForm.user, editForm.type, editForm.startDate, editForm.endDate, editForm.phone]);
+    }
+    setShowForm(false); setEditSubId(null);
+    setEditForm({ user: '', type: 'شهري', startDate: '', endDate: '', phone: '' });
+    loadData();
   };
 
-  const handleToggleSubscription = (id: string) => {
-    setSubscriptions(subs => subs.map(s => s.id === id ? { ...s, active: !s.active } : s));
+  const handleDeleteSub = async (id: string) => {
+    Alert.alert('حذف', 'حذف الاشتراك؟', [{ text: 'إلغاء' }, { text: 'حذف', onPress: async () => {
+      await db.runAsync('UPDATE subscriptions SET active=0 WHERE id=?', [id]);
+      loadData();
+    }}]);
   };
 
-  const handleDeleteSubscription = (id: string) => {
-    Alert.alert('حذف', 'هل أنت متأكد من حذف هذا الاشتراك؟', [
-      { text: 'إلغاء', style: 'cancel' },
-      { text: 'حذف', style: 'destructive', onPress: () => setSubscriptions(subs => subs.filter(s => s.id !== id)) }
-    ]);
-  };
-
-  const handleEditSubscription = (sub: any) => {
-    // setEditSubId(sub.id);
-    setEditForm({ user: sub.user, type: sub.type, startDate: sub.startDate, endDate: sub.endDate, phone: sub.phone || '' });
-  };
-
-  const handleSaveEdit = () => {
-    setSubscriptions(subs => subs.map(s => s.id === editSubId ? { ...s, ...editForm } : s));
-    // setEditSubId(null);
-  };
-
-  const handleBroadcast = () => {
-    if (!broadcastMsg.trim()) { Alert.alert('خطأ', 'اكتب نص الإشعار'); return; }
-    Alert.alert('✅ تم الإرسال', 'تم إرسال الإشعار الجماعي لجميع المستخدمين');
-    setBroadcastMsg('');
-    setShowBroadcastModal(false);
-  };
-
-  if (!isUnlocked) {
-    return (
-      <View style={[st.c, { paddingTop: insets.top }]}>
-        <StatusBar barStyle="light-content" />
-        <View style={st.h}><TouchableOpacity onPress={() => router.back()}><Text style={st.bt}>←</Text></TouchableOpacity><Text style={st.t}>🔒 لوحة تحكم المالك</Text><View style={{ width: 36 }} /></View>
-        <View style={st.lockScreen}>
-          <Text style={st.lockIcon}>🔐</Text>
-          <Text style={st.lockTitle}>كلمة مرور المالك</Text>
-          <TextInput style={st.lockInput} value={password} onChangeText={setPassword} placeholder="أدخل كلمة المرور" placeholderTextColor="#666" secureTextEntry />
-          <TouchableOpacity style={st.lockBtn} onPress={handleUnlock}><Text style={st.lockBtnText}>🔓 فتح</Text></TouchableOpacity>
-          <Text style={st.hint}>كلمة المرور الافتراضية: admin123</Text>
-        </View>
-      </View>
-    );
-  }
+  const tabs = [
+    { key: 'dashboard', icon: '📊', label: 'لوحة التحكم' },
+    { key: 'subscriptions', icon: '🔑', label: 'الاشتراكات' },
+    { key: 'stats', icon: '📈', label: 'إحصائيات' },
+  ];
 
   return (
     <View style={[st.c, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="light-content" />
-      
       <View style={st.h}>
-        <TouchableOpacity onPress={() => router.back()}><Text style={st.bt}>←</Text></TouchableOpacity>
-        <Text style={st.t}>👑 لوحة تحكم المالك</Text>
-        <TouchableOpacity onPress={() => setIsUnlocked(false)}><Text style={st.logout}>🔒</Text></TouchableOpacity>
+        <TouchableOpacity onPress={() => router.back()}><Text style={st.bb}>←</Text></TouchableOpacity>
+        <Text style={st.t}>👑 لوحة المالك</Text>
+        <TouchableOpacity onPress={() => { setEditSubId(null); setEditForm({ user: '', type: 'شهري', startDate: '', endDate: '', phone: '' }); setShowForm(true); }}><Text style={st.add}>+</Text></TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={st.ct}>
-        
-        {/* إحصائيات */}
-        <Text style={st.st}>📊 إحصائيات النظام</Text>
-        <View style={st.statsGrid}>
-          {[
-            { icon: '📚', label: 'الحسابات', value: accounts.length, color: '#D4AF37' },
-            { icon: '👥', label: 'العملاء', value: customers.length, color: '#10B981' },
-            { icon: '🏪', label: 'الموردين', value: suppliers.length, color: '#3B82F6' },
-            { icon: '📄', label: 'فواتير البيع', value: invoices.length, color: '#7C3AED' },
-            { icon: '📋', label: 'فواتير الشراء', value: purchases.length, color: '#F59E0B' },
-            { icon: '📦', label: 'الأصناف', value: items.length, color: '#EF4444' },
-            { icon: '💰', label: 'المبيعات', value: totalSales.toLocaleString() + ' ﷼', color: '#06B6D4' },
-            { icon: '💳', label: 'المشتريات', value: totalPurchases.toLocaleString() + ' ﷼', color: '#8B5CF6' },
-            { icon: '💎', label: 'مشتركين نشطين', value: activeSubs, color: '#10B981' },
-          ].map((stat, i) => (
-            <View key={i} style={st.statCard}>
-              <Text style={st.statIcon}>{stat.icon}</Text>
-              <Text style={[st.statValue, { color: stat.color }]}>{stat.value}</Text>
-              <Text style={st.statLabel}>{stat.label}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* أزرار التحكم */}
-        <Text style={st.st}>⚡ إجراءات المالك</Text>
-        <View style={st.controlRow}>
-          <TouchableOpacity style={[st.ctrlBtn, { backgroundColor: '#10B98120', borderColor: '#10B98140' }]} onPress={() => { generateCode(); setShowGenerateModal(true); }}>
-            <Text style={st.ctrlIcon}>🔑</Text><Text style={[st.ctrlLabel, { color: '#10B981' }]}>توليد رمز تفعيل</Text>
+      <View style={st.tabs}>
+        {tabs.map(tab => (
+          <TouchableOpacity key={tab.key} style={[st.tab, activeTab === tab.key && st.tabA]} onPress={() => setActiveTab(tab.key)}>
+            <Text style={[st.tabT, activeTab === tab.key && st.tabTA]}>{tab.icon} {tab.label}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[st.ctrlBtn, { backgroundColor: '#3B82F620', borderColor: '#3B82F640' }]} onPress={() => setShowBroadcastModal(true)}>
-            <Text style={st.ctrlIcon}>📢</Text><Text style={[st.ctrlLabel, { color: '#3B82F6' }]}>إشعار جماعي</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={st.controlRow}>
-          <TouchableOpacity style={[st.ctrlBtn, { backgroundColor: '#F59E0B20', borderColor: '#F59E0B40' }]} onPress={() => setShowUpdateModal(true)}>
-            <Text style={st.ctrlIcon}>🔄</Text><Text style={[st.ctrlLabel, { color: '#F59E0B' }]}>رفع تحديث</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[st.ctrlBtn, { backgroundColor: '#EF444420', borderColor: '#EF444440' }]} onPress={() => Alert.alert('⚠️', 'هل أنت متأكد من مسح جميع البيانات؟', [{ text: 'نعم', style: 'destructive' }, { text: 'لا' }])}>
-            <Text style={st.ctrlIcon}>🗑️</Text><Text style={[st.ctrlLabel, { color: '#EF4444' }]}>مسح البيانات</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* إدارة الاشتراكات */}
-        <Text style={st.st}>💎 إدارة الاشتراكات</Text>
-        <TouchableOpacity style={st.addSubBtn} onPress={() => {
-          // setEditSubId('new');
-          setEditForm({ user: '', type: 'نصف سنوي', startDate: new Date().toISOString().split('T')[0], endDate: '', phone: '' });
-        }}>
-          <Text style={st.addSubText}>➕ إضافة مشترك جديد</Text>
-        </TouchableOpacity>
-
-        {subscriptions.map(sub => (
-          <View key={sub.id} style={st.subCard}>
-            {editSubId === sub.id ? (
-              <View>
-                <TextInput style={st.fi} value={editForm.user} onChangeText={v => setEditForm({ ...editForm, user: v })} placeholder="اسم المشترك" placeholderTextColor="#666" />
-                <View style={st.rw}>
-                  <TextInput style={[st.fi, st.hf]} value={editForm.phone} onChangeText={v => setEditForm({ ...editForm, phone: v })} placeholder="رقم الهاتف" placeholderTextColor="#666" />
-                  <TextInput style={[st.fi, st.hf]} value={editForm.type} onChangeText={v => setEditForm({ ...editForm, type: v })} placeholder="النوع" placeholderTextColor="#666" />
-                </View>
-                <View style={st.rw}>
-                  <TextInput style={[st.fi, st.hf]} value={editForm.startDate} onChangeText={v => setEditForm({ ...editForm, startDate: v })} placeholder="من" placeholderTextColor="#666" />
-                  <TextInput style={[st.fi, st.hf]} value={editForm.endDate} onChangeText={v => setEditForm({ ...editForm, endDate: v })} placeholder="إلى" placeholderTextColor="#666" />
-                </View>
-                <View style={st.editActions}>
-                  <TouchableOpacity style={st.saveEditBtn} onPress={handleSaveEdit}><Text style={st.saveEditText}>💾 حفظ</Text></TouchableOpacity>
-                  <TouchableOpacity style={st.cancelEditBtn} onPress={() => // setEditSubId(null)}><Text style={st.cancelEditText}>إلغاء</Text></TouchableOpacity>
-                </View>
-              </View>
-            ) : (
-              <View>
-                <View style={st.subHeader}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={st.subUser}>👤 {sub.user}</Text>
-                    <Text style={st.subPhone}>📞 {sub.phone || 'لا يوجد'}</Text>
-                    <Text style={st.subType}>{sub.type}</Text>
-                    <Text style={st.subDate}>📅 {sub.startDate} → {sub.endDate}</Text>
-                  </View>
-                  <View style={st.subActions}>
-                    <TouchableOpacity onPress={() => handleToggleSubscription(sub.id)}>
-                      <Text style={[st.subStatus, { color: sub.active ? '#10B981' : '#EF4444' }]}>{sub.active ? '✅ نشط' : '❌ موقوف'}</Text>
-                    </TouchableOpacity>
-                    <View style={st.subBtns}>
-                      <TouchableOpacity style={st.editBtn} onPress={() => handleEditSubscription(sub)}><Text style={st.editBtnText}>✏️</Text></TouchableOpacity>
-                      <TouchableOpacity style={st.delBtn} onPress={() => handleDeleteSubscription(sub.id)}><Text style={st.delBtnText}>🗑️</Text></TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
-              </View>
-            )}
-          </View>
         ))}
+      </View>
 
-        {/* إضافة مشترك جديد */}
-        {editSubId === 'new' && (
-          <View style={st.subCard}>
-            <View>
-              <TextInput style={st.fi} value={editForm.user} onChangeText={v => setEditForm({ ...editForm, user: v })} placeholder="اسم المشترك *" placeholderTextColor="#666" />
-              <View style={st.rw}>
-                <TextInput style={[st.fi, st.hf]} value={editForm.phone} onChangeText={v => setEditForm({ ...editForm, phone: v })} placeholder="رقم الهاتف" placeholderTextColor="#666" />
-                <TextInput style={[st.fi, st.hf]} value={editForm.type} onChangeText={v => setEditForm({ ...editForm, type: v })} placeholder="نصف سنوي/سنوي" placeholderTextColor="#666" />
-              </View>
-              <View style={st.rw}>
-                <TextInput style={[st.fi, st.hf]} value={editForm.startDate} onChangeText={v => setEditForm({ ...editForm, startDate: v })} placeholder="تاريخ البداية" placeholderTextColor="#666" />
-                <TextInput style={[st.fi, st.hf]} value={editForm.endDate} onChangeText={v => setEditForm({ ...editForm, endDate: v })} placeholder="تاريخ النهاية" placeholderTextColor="#666" />
-              </View>
-              <View style={st.editActions}>
-                <TouchableOpacity style={st.saveEditBtn} onPress={() => {
-                  if (!editForm.user) { Alert.alert('خطأ', 'أدخل اسم المشترك'); return; }
-                  setSubscriptions([...subscriptions, { id: Date.now().toString(), user: editForm.user, type: editForm.type, startDate: editForm.startDate, endDate: editForm.endDate, active: true, phone: editForm.phone }]);
-                  // setEditSubId(null);
-                }}><Text style={st.saveEditText}>💾 إضافة</Text></TouchableOpacity>
-                <TouchableOpacity style={st.cancelEditBtn} onPress={() => // setEditSubId(null)}><Text style={st.cancelEditText}>إلغاء</Text></TouchableOpacity>
-              </View>
+      <ScrollView contentContainerStyle={{ padding: 16 }}>
+        {activeTab === 'dashboard' && (
+          <View>
+            <View style={st.stats}>
+              <View style={st.stat}><Text style={st.sv}>{totalSales.toLocaleString()} ﷼</Text><Text style={st.sl}>إجمالي المبيعات</Text></View>
+              <View style={st.stat}><Text style={st.sv}>{totalPurchases.toLocaleString()} ﷼</Text><Text style={st.sl}>إجمالي المشتريات</Text></View>
+              <View style={[st.stat, { borderColor: profit >= 0 ? '#10B981' : '#EF4444' }]}><Text style={[st.sv, { color: profit >= 0 ? '#10B981' : '#EF4444' }]}>{profit.toLocaleString()} ﷼</Text><Text style={st.sl}>صافي الربح</Text></View>
+            </View>
+            <View style={st.infoBox}>
+              <Text style={st.infoTitle}>📊 ملخص النظام</Text>
+              <Text style={st.infoText}>👥 العملاء: {customers.length}</Text>
+              <Text style={st.infoText}>📚 الحسابات: {accounts.length}</Text>
+              <Text style={st.infoText}>🔑 الاشتراكات: {subscriptions.length}</Text>
             </View>
           </View>
         )}
 
-        <View style={{ height: 40 }} />
+        {activeTab === 'subscriptions' && (
+          <View>
+            {showForm && (
+              <View style={st.form}>
+                <Text style={st.fl}>اسم المستخدم *</Text>
+                <TextInput style={st.fi} value={editForm.user} onChangeText={v => setEditForm({ ...editForm, user: v })} placeholder="الاسم" placeholderTextColor="#666" />
+                <Text style={st.fl}>نوع الاشتراك</Text>
+                <View style={st.typeRow}>
+                  {['شهري', 'سنوي', 'دائم'].map(t => (
+                    <TouchableOpacity key={t} style={[st.typeBtn, editForm.type === t && st.typeBtnA]} onPress={() => setEditForm({ ...editForm, type: t })}>
+                      <Text style={[st.typeText, editForm.type === t && st.typeTextA]}>{t}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <View style={{ flex: 1 }}><Text style={st.fl}>من تاريخ</Text><TextInput style={st.fi} value={editForm.startDate} onChangeText={v => setEditForm({ ...editForm, startDate: v })} placeholder="YYYY-MM-DD" placeholderTextColor="#666" /></View>
+                  <View style={{ flex: 1 }}><Text style={st.fl}>إلى تاريخ</Text><TextInput style={st.fi} value={editForm.endDate} onChangeText={v => setEditForm({ ...editForm, endDate: v })} placeholder="YYYY-MM-DD" placeholderTextColor="#666" /></View>
+                </View>
+                <Text style={st.fl}>رقم الهاتف</Text>
+                <TextInput style={st.fi} value={editForm.phone} onChangeText={v => setEditForm({ ...editForm, phone: v })} placeholder="الهاتف" placeholderTextColor="#666" keyboardType="phone-pad" />
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+                  <TouchableOpacity style={[st.btn, { flex: 1, backgroundColor: '#D4AF37' }]} onPress={handleSaveSub}><Text style={[st.btnT, { color: '#000' }]}>💾 حفظ</Text></TouchableOpacity>
+                  <TouchableOpacity style={[st.btn, { flex: 1, backgroundColor: '#2a3550' }]} onPress={() => { setShowForm(false); setEditSubId(null); }}><Text style={[st.btnT, { color: '#FFF' }]}>إلغاء</Text></TouchableOpacity>
+                </View>
+              </View>
+            )}
+            <FlatList data={subscriptions} keyExtractor={(i: any) => i.id}
+              renderItem={({ item }: any) => (
+                <View style={st.card}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={st.cn}>{item.user}</Text>
+                    <Text style={st.cd}>{item.type} | {item.startDate} → {item.endDate}</Text>
+                    <Text style={st.cp}>📞 {item.phone || '-'}</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <TouchableOpacity onPress={() => { setEditSubId(item.id); setEditForm({ user: item.user, type: item.type, startDate: item.startDate, endDate: item.endDate, phone: item.phone || '' }); setShowForm(true); }}><Text>✏️</Text></TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleDeleteSub(item.id)}><Text>🗑️</Text></TouchableOpacity>
+                  </View>
+                </View>
+              )}
+              ListEmptyComponent={<Text style={st.empty}>لا توجد اشتراكات</Text>}
+            />
+          </View>
+        )}
+
+        {activeTab === 'stats' && (
+          <View style={st.infoBox}>
+            <Text style={st.infoTitle}>📈 إحصائيات متقدمة</Text>
+            <Text style={st.infoText}>عدد الفواتير: {invoices.length}</Text>
+            <Text style={st.infoText}>عدد فواتير الشراء: {purchases.length}</Text>
+            <Text style={st.infoText}>متوسط المبيعات: {invoices.length > 0 ? (totalSales / invoices.length).toLocaleString() : 0} ﷼</Text>
+            <Text style={st.infoText}>نسبة الربح: {totalSales > 0 ? ((profit / totalSales) * 100).toFixed(1) : 0}%</Text>
+          </View>
+        )}
       </ScrollView>
-
-      {/* Modal توليد رمز تفعيل */}
-      <Modal visible={showGenerateModal} animationType="slide" transparent>
-        <View style={st.mo}><View style={st.mc}><View style={st.mh}><Text style={st.mt}>🔑 رمز التفعيل الجديد</Text><TouchableOpacity onPress={() => setShowGenerateModal(false)}><Text style={st.mx}>✕</Text></TouchableOpacity></View>
-          <View style={st.modalBody}>
-            <Text style={st.codeText}>{generatedCode}</Text>
-            <Text style={st.codeHint}>انسخ هذا الرمز وأرسله للمستخدم للتفعيل</Text>
-            <TouchableOpacity style={st.modalBtn} onPress={() => { setShowGenerateModal(false); Alert.alert('✅', 'تم نسخ الرمز'); }}><Text style={st.modalBtnText}>✅ تم</Text></TouchableOpacity>
-          </View></View></View>
-      </Modal>
-
-      {/* Modal إشعار جماعي */}
-      <Modal visible={showBroadcastModal} animationType="slide" transparent>
-        <View style={st.mo}><View style={st.mc}><View style={st.mh}><Text style={st.mt}>📢 إشعار جماعي</Text><TouchableOpacity onPress={() => setShowBroadcastModal(false)}><Text style={st.mx}>✕</Text></TouchableOpacity></View>
-          <View style={st.modalBody}>
-            <TextInput style={[st.fi, { height: 80 }]} value={broadcastMsg} onChangeText={setBroadcastMsg} placeholder="نص الإشعار لجميع المستخدمين..." placeholderTextColor="#666" multiline textAlignVertical="top" />
-            <TouchableOpacity style={st.modalBtn} onPress={handleBroadcast}><Text style={st.modalBtnText}>📤 إرسال للجميع</Text></TouchableOpacity>
-          </View></View></View>
-      </Modal>
-
-      {/* Modal رفع تحديث */}
-      <Modal visible={showUpdateModal} animationType="slide" transparent>
-        <View style={st.mo}><View style={st.mc}><View style={st.mh}><Text style={st.mt}>🔄 رفع تحديث</Text><TouchableOpacity onPress={() => setShowUpdateModal(false)}><Text style={st.mx}>✕</Text></TouchableOpacity></View>
-          <View style={st.modalBody}>
-            <Text style={st.fl}>رقم الإصدار</Text><TextInput style={st.fi} placeholder="مثال: 1.0.1" placeholderTextColor="#666" />
-            <Text style={st.fl}>وصف التحديث</Text><TextInput style={[st.fi, { height: 60 }]} placeholder="ما الجديد في هذا التحديث؟" placeholderTextColor="#666" multiline />
-            <TouchableOpacity style={st.modalBtn} onPress={() => { setShowUpdateModal(false); Alert.alert('✅', 'تم رفع التحديث'); }}><Text style={st.modalBtnText}>📤 رفع التحديث</Text></TouchableOpacity>
-          </View></View></View>
-      </Modal>
     </View>
   );
 }
 
 const st = StyleSheet.create({
   c: { flex: 1, backgroundColor: '#0A1128' },
-  h: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
-  bt: { fontSize: 24, color: '#D4AF37', fontWeight: 'bold' },
-  t: { fontSize: 18, fontWeight: 'bold', color: '#FFF' },
-  logout: { fontSize: 22 },
-  ct: { padding: 14 },
-  
-  lockScreen: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
-  lockIcon: { fontSize: 64, marginBottom: 16 },
-  lockTitle: { color: '#FFF', fontSize: 20, fontWeight: 'bold', marginBottom: 20 },
-  lockInput: { backgroundColor: '#16213E', borderRadius: 12, padding: 14, color: '#FFF', borderWidth: 1, borderColor: '#2a3550', width: '100%', textAlign: 'center', fontSize: 18, marginBottom: 16 },
-  lockBtn: { backgroundColor: '#D4AF37', borderRadius: 12, padding: 14, width: '100%', alignItems: 'center' },
-  lockBtnText: { color: '#0A1128', fontSize: 16, fontWeight: 'bold' },
-  hint: { color: '#6B7280', fontSize: 11, marginTop: 12 },
-  
-  st: { fontSize: 15, fontWeight: 'bold', color: '#D4AF37', marginBottom: 10, marginTop: 18 },
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  statCard: { width: '30%', backgroundColor: '#16213E', borderRadius: 12, padding: 10, alignItems: 'center', borderWidth: 1, borderColor: '#2a3550' },
-  statIcon: { fontSize: 18, marginBottom: 3 },
-  statValue: { fontSize: 12, fontWeight: 'bold', marginBottom: 2 },
-  statLabel: { color: '#94a3b8', fontSize: 9 },
-  
-  controlRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
-  ctrlBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 12, borderWidth: 1, gap: 6 },
-  ctrlIcon: { fontSize: 18 },
-  ctrlLabel: { fontSize: 12, fontWeight: '600' },
-  
-  addSubBtn: { backgroundColor: '#D4AF37' + '20', borderRadius: 12, padding: 12, alignItems: 'center', marginBottom: 10, borderWidth: 1, borderColor: '#D4AF37' + '40' },
-  addSubText: { color: '#D4AF37', fontSize: 14, fontWeight: 'bold' },
-  
-  subCard: { backgroundColor: '#16213E', borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: '#2a3550' },
-  subHeader: { flexDirection: 'row', justifyContent: 'space-between' },
-  subUser: { color: '#FFF', fontSize: 14, fontWeight: 'bold', marginBottom: 4 },
-  subPhone: { color: '#94a3b8', fontSize: 11, marginBottom: 2 },
-  subType: { color: '#D4AF37', fontSize: 11, marginBottom: 2 },
-  subDate: { color: '#6B7280', fontSize: 10 },
-  subActions: { alignItems: 'flex-end', gap: 6 },
-  subStatus: { fontSize: 13, fontWeight: 'bold' },
-  subBtns: { flexDirection: 'row', gap: 6 },
-  editBtn: { backgroundColor: '#3B82F6' + '20', padding: 6, borderRadius: 8 },
-  editBtnText: { color: '#3B82F6', fontSize: 14 },
-  delBtn: { backgroundColor: '#EF4444' + '20', padding: 6, borderRadius: 8 },
-  delBtnText: { color: '#EF4444', fontSize: 14 },
-  
-  fi: { backgroundColor: '#0A1128', borderRadius: 10, padding: 10, color: '#FFF', borderWidth: 1, borderColor: '#2a3550', fontSize: 13, marginBottom: 6 },
-  rw: { flexDirection: 'row', gap: 6 },
-  hf: { flex: 1 },
-  editActions: { flexDirection: 'row', gap: 8, marginTop: 8 },
-  saveEditBtn: { flex: 1, backgroundColor: '#D4AF37', borderRadius: 10, padding: 10, alignItems: 'center' },
-  saveEditText: { color: '#0A1128', fontSize: 14, fontWeight: 'bold' },
-  cancelEditBtn: { flex: 1, backgroundColor: '#2a3550', borderRadius: 10, padding: 10, alignItems: 'center' },
-  cancelEditText: { color: '#FFF', fontSize: 14 },
-  
-  mo: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  mc: { backgroundColor: '#16213E', borderTopLeftRadius: 20, borderTopRightRadius: 20 },
-  mh: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#2a3550' },
-  mt: { color: '#D4AF37', fontSize: 18, fontWeight: 'bold' },
-  mx: { color: '#EF4444', fontSize: 22, fontWeight: 'bold' },
-  modalBody: { padding: 16 },
-  fl: { color: '#94a3b8', fontSize: 13, marginBottom: 6, marginTop: 10 },
-  codeText: { color: '#10B981', fontSize: 22, fontWeight: 'bold', textAlign: 'center', letterSpacing: 2, marginBottom: 8 },
-  codeHint: { color: '#94a3b8', fontSize: 12, textAlign: 'center', marginBottom: 20 },
-  modalBtn: { backgroundColor: '#D4AF37', borderRadius: 12, padding: 14, alignItems: 'center' },
-  modalBtnText: { color: '#0A1128', fontSize: 16, fontWeight: 'bold' },
+  h: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16 },
+  bb: { fontSize: 24, color: '#D4AF37' }, t: { color: '#D4AF37', fontSize: 20, fontWeight: 'bold' }, add: { fontSize: 28, color: '#D4AF37' },
+  tabs: { flexDirection: 'row', gap: 6, paddingHorizontal: 16, marginBottom: 8 },
+  tab: { flex: 1, padding: 10, borderRadius: 10, backgroundColor: '#16213E', alignItems: 'center', borderWidth: 1, borderColor: '#2a3550' },
+  tabA: { borderColor: '#D4AF37', backgroundColor: '#D4AF3710' }, tabT: { color: '#94a3b8', fontSize: 12 }, tabTA: { color: '#D4AF37', fontWeight: 'bold' },
+  stats: { flexDirection: 'row', gap: 6, marginBottom: 16 },
+  stat: { flex: 1, backgroundColor: '#16213E', borderRadius: 12, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#2a3550' },
+  sv: { color: '#D4AF37', fontSize: 14, fontWeight: 'bold' }, sl: { color: '#94a3b8', fontSize: 10, marginTop: 4 },
+  infoBox: { backgroundColor: '#16213E', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#2a3550' },
+  infoTitle: { color: '#D4AF37', fontSize: 16, fontWeight: 'bold', marginBottom: 12 },
+  infoText: { color: '#FFF', fontSize: 13, marginBottom: 6 },
+  form: { backgroundColor: '#16213E', borderRadius: 12, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: '#2a3550' },
+  fl: { color: '#94a3b8', fontSize: 13, marginBottom: 4, marginTop: 8 },
+  fi: { backgroundColor: '#0A1128', color: '#FFF', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#2a3550', textAlign: 'right' },
+  typeRow: { flexDirection: 'row', gap: 6 }, typeBtn: { padding: 8, borderRadius: 8, backgroundColor: '#0A1128', borderWidth: 1, borderColor: '#2a3550' },
+  typeBtnA: { borderColor: '#D4AF37', backgroundColor: '#D4AF3720' }, typeText: { color: '#94a3b8', fontSize: 12 }, typeTextA: { color: '#D4AF37', fontWeight: 'bold' },
+  btn: { padding: 12, borderRadius: 8, alignItems: 'center' }, btnT: { fontWeight: 'bold', fontSize: 14 },
+  card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#16213E', borderRadius: 12, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: '#2a3550' },
+  cn: { color: '#FFF', fontSize: 14, fontWeight: 'bold' }, cd: { color: '#94a3b8', fontSize: 11, marginTop: 2 }, cp: { color: '#10B981', fontSize: 11, marginTop: 2 },
+  empty: { color: '#666', textAlign: 'center', marginTop: 40 },
 });

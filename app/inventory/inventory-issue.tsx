@@ -1,3 +1,5 @@
+import { ControlButtons, ControlHeader } from "../../src/components/ui/ControlButtons";
+      <ControlButtons showAdd showEdit showDelete showSearch showPrint showRefresh showExport onAdd={()=>setShowModal(true)} />
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, StatusBar, Alert, Modal, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';

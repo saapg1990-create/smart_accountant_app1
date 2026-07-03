@@ -1,32 +1,23 @@
 {
   "expo": {
-    "name": "دفتر المحاسب الذكي",
+    "name": "المحاسب الذكي",
     "slug": "smart-accountant",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "splash": {
       "backgroundColor": "#0A1128"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.smartaccountant.app"
+      "bundleIdentifier": "com.sad1990.smartaccountant"
     },
     "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#0A1128"
-      },
-      "package": "com.smartaccountant.app"
+      "package": "com.sad1990.smartaccountant"
     },
-    "web": {
-      "bundler": "metro"
-    },
-    "plugins": [
-      "expo-sqlite"
-    ],
     "extra": {
       "eas": {
-        "projectId": "ddd610ad-2e6a-4c0e-9d50-f8527fbc33a3"
+        "projectId": "d6ac2884-73f2-429d-adf0-2eb4e3146c2c"
       }
     }
   }

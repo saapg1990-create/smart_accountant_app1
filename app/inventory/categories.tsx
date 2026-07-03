@@ -1,3 +1,5 @@
+import { ControlButtons, ControlHeader } from "../../src/components/ui/ControlButtons";
+      <ControlButtons showAdd showEdit showDelete showSearch showPrint showRefresh showExport onAdd={openAdd} onRefresh={loadData} />
 import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';

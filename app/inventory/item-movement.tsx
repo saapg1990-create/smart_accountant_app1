@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, StatusBar, FlatList, TextInput, Alert } from 'react-native';
+import { ControlButtons, ControlHeader } from '../../src/components/ui/ControlButtons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalTable } from '../../hooks/useLocalStore';
