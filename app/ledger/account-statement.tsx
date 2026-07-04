@@ -1,139 +1,53 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useDatabase } from '../../context/DatabaseContext';
-import { ControlHeader } from '../../src/components/ui/ControlButtons';
+import { DataService } from '../../src/services/dataService';
+import { PickerModal } from '../../src/components/ui/PickerModal';
+import { ControlButtons, ControlHeader } from '../../src/components/ui/ControlButtons';
 
 export default function AccountStatementScreen() {
   const router = useRouter(); const insets = useSafeAreaInsets();
-  const { db } = useDatabase();
   const [accounts, setAccounts] = useState<any[]>([]);
-  const [selectedAccount, setSelectedAccount] = useState<any>(null);
+  const [selected, setSelected] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [showPicker, setShowPicker] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
 
-  useFocusEffect(useCallback(() => { loadAccounts(); }, [db]));
+  useFocusEffect(useCallback(() => { loadAccounts(); }, []));
+  const loadAccounts = async () => { const data = await DataService.getAccounts(); setAccounts(data || []); };
 
-  const loadAccounts = async () => {
-    if (!db) return;
-    const result = await db.getAllAsync('SELECT * FROM accounts WHERE isActive=1 ORDER BY code');
-    setAccounts(result);
-  };
-
-  const loadTransactions = async (accountId: string) => {
-    if (!db) return;
-    const result = await db.getAllAsync(
-      `SELECT ji.*, je.date, je.number as entryNumber, je.description as entryDesc 
-       FROM journal_items ji 
-       JOIN journal_entries je ON ji.entryId = je.id 
-       WHERE ji.accountId = ? 
-       ORDER BY je.date DESC, je.number DESC 
-       LIMIT 100`,
-      [accountId]
-    );
-    setTransactions(result);
-  };
-
-  const selectAccount = (account: any) => {
-    setSelectedAccount(account);
-    loadTransactions(account.id);
+  const selectAccount = async (acc: any) => {
+    setSelected(acc);
     setShowPicker(false);
+    const entries = await DataService.getJournalEntries();
+    setTransactions((entries || []).filter((e: any) => 
+      e.description?.includes(acc.name) || e.number?.includes(acc.code)
+    ));
   };
 
-  const balance = transactions.reduce((sum, t) => sum + (t.debit || 0) - (t.credit || 0), 0);
+  const balance = transactions.reduce((s: number, t: any) => s + (t.totalDebit || 0) - (t.totalCredit || 0), 0);
 
   return (
     <View style={[st.c, { paddingTop: insets.top }]}>
       <ControlHeader title="كشف حساب" onBack={() => router.back()} />
-      
-      <TouchableOpacity style={st.selector} onPress={() => setShowPicker(true)}>
-        <Text style={selectedAccount ? st.selectorText : st.placeholder}>
-          {selectedAccount ? `${selectedAccount.code} - ${selectedAccount.name}` : 'اختر الحساب...'}
-        </Text>
-        <Text style={st.arrow}>▼</Text>
+      <TouchableOpacity style={st.pk} onPress={()=>setShowPicker(true)}>
+        <Text style={selected?st.pkt:st.pkp}>{selected ? `${selected.code} - ${selected.name}` : 'اختر الحساب'}</Text>
+        <Text style={st.pka}>▼</Text>
       </TouchableOpacity>
-
-      {selectedAccount && (
-        <View style={st.balanceBox}>
-          <Text style={st.balanceLabel}>الرصيد الحالي</Text>
-          <Text style={[st.balanceValue, { color: balance >= 0 ? '#10B981' : '#EF4444' }]}>
-            {balance.toLocaleString()} ﷼
-          </Text>
+      {selected && <View style={st.bal}><Text style={st.bl}>الرصيد: {balance.toLocaleString()} ﷼</Text></View>}
+      <FlatList data={transactions} keyExtractor={i => i.id} renderItem={({item}) => (
+        <View style={st.card}>
+          <Text style={st.cn}>{item.number}</Text><Text style={st.cd}>{item.description}</Text>
+          <View style={st.row}><Text style={st.dr}>مدين: {item.totalDebit?.toLocaleString()||0}</Text><Text style={st.cr}>دائن: {item.totalCredit?.toLocaleString()||0}</Text></View>
         </View>
-      )}
-
-      {showPicker && (
-        <View style={st.pickerOverlay}>
-          <View style={st.pickerContent}>
-            <Text style={st.pickerTitle}>اختر الحساب</Text>
-            <TextInput style={st.searchInput} placeholder="🔍 بحث..." placeholderTextColor="#666" value={searchQuery} onChangeText={setSearchQuery} />
-            <FlatList data={accounts.filter(a => a.name?.includes(searchQuery) || a.code?.includes(searchQuery))}
-              keyExtractor={i => i.id}
-              renderItem={({ item }) => (
-                <TouchableOpacity style={st.pickerItem} onPress={() => selectAccount(item)}>
-                  <Text style={st.pickerItemCode}>{item.code}</Text>
-                  <Text style={st.pickerItemName}>{item.name}</Text>
-                  <Text style={[st.pickerItemType, { color: item.type === 'أصل' ? '#10B981' : '#EF4444' }]}>{item.type}</Text>
-                </TouchableOpacity>
-              )}
-            />
-            <TouchableOpacity style={st.closePicker} onPress={() => setShowPicker(false)}>
-              <Text style={st.closePickerText}>إغلاق</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
-      <View style={st.tableHeader}>
-        <Text style={[st.th, { flex: 1 }]}>التاريخ</Text>
-        <Text style={[st.th, { flex: 2 }]}>البيان</Text>
-        <Text style={[st.th, { flex: 1, color: '#EF4444' }]}>مدين</Text>
-        <Text style={[st.th, { flex: 1, color: '#10B981' }]}>دائن</Text>
-      </View>
-
-      <FlatList data={transactions} keyExtractor={i => i.id}
-        renderItem={({ item }) => (
-          <View style={st.row}>
-            <Text style={[st.cell, { flex: 1, fontSize: 10 }]}>{item.date}</Text>
-            <View style={{ flex: 2 }}>
-              <Text style={st.desc}>{item.description || item.entryDesc}</Text>
-              <Text style={st.entryNum}>{item.entryNumber}</Text>
-            </View>
-            <Text style={[st.cell, { flex: 1, color: '#EF4444' }]}>{item.debit > 0 ? item.debit.toLocaleString() : '-'}</Text>
-            <Text style={[st.cell, { flex: 1, color: '#10B981' }]}>{item.credit > 0 ? item.credit.toLocaleString() : '-'}</Text>
-          </View>
-        )}
-        ListEmptyComponent={<Text style={st.empty}>{selectedAccount ? 'لا توجد حركات' : 'اختر حساباً لعرض الحركات'}</Text>}
-      />
+      )} ListEmptyComponent={<Text style={st.et}>{selected ? 'لا توجد حركات' : 'اختر حساباً'}</Text>} contentContainerStyle={{padding:12}} />
+      <PickerModal visible={showPicker} title="اختيار الحساب" data={accounts} displayField="name" subField="code" onSelect={selectAccount} onClose={()=>setShowPicker(false)} />
     </View>
   );
 }
-
 const st = StyleSheet.create({
-  c: { flex: 1, backgroundColor: '#0A1128' },
-  selector: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', margin: 16, padding: 14, backgroundColor: '#16213E', borderRadius: 10, borderWidth: 1, borderColor: '#2a3550' },
-  selectorText: { color: '#FFF', fontSize: 16, flex: 1, textAlign: 'right' },
-  placeholder: { color: '#666', fontSize: 16, flex: 1, textAlign: 'right' },
-  arrow: { color: '#D4AF37', fontSize: 14, marginLeft: 8 },
-  balanceBox: { marginHorizontal: 16, padding: 14, backgroundColor: '#16213E', borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: '#D4AF37' },
-  balanceLabel: { color: '#94a3b8', fontSize: 12 }, balanceValue: { fontSize: 24, fontWeight: 'bold', marginTop: 4 },
-  pickerOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 10, justifyContent: 'center', padding: 20 },
-  pickerContent: { backgroundColor: '#16213E', borderRadius: 16, maxHeight: '80%', padding: 16 },
-  pickerTitle: { color: '#D4AF37', fontSize: 18, fontWeight: 'bold', textAlign: 'center', marginBottom: 12 },
-  searchInput: { backgroundColor: '#0A1128', color: '#FFF', padding: 12, borderRadius: 8, marginBottom: 10, textAlign: 'right' },
-  pickerItem: { flexDirection: 'row', alignItems: 'center', padding: 12, borderBottomWidth: 1, borderBottomColor: '#2a3550' },
-  pickerItemCode: { color: '#D4AF37', fontSize: 14, fontWeight: 'bold', width: 70 },
-  pickerItemName: { color: '#FFF', fontSize: 14, flex: 1, textAlign: 'right' },
-  pickerItemType: { fontSize: 11, fontWeight: 'bold' },
-  closePicker: { backgroundColor: '#EF4444', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 10 },
-  closePickerText: { color: '#FFF', fontWeight: 'bold' },
-  tableHeader: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#16213E', marginHorizontal: 12, borderRadius: 8, marginTop: 12 },
-  th: { color: '#D4AF37', fontSize: 12, fontWeight: 'bold', textAlign: 'center' },
-  row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#1a2540' },
-  cell: { color: '#FFF', fontSize: 13, textAlign: 'center' },
-  desc: { color: '#FFF', fontSize: 12, textAlign: 'right' },
-  entryNum: { color: '#94a3b8', fontSize: 10, textAlign: 'right', marginTop: 2 },
-  empty: { color: '#94a3b8', textAlign: 'center', marginTop: 40, fontSize: 16 },
+  c:{flex:1,backgroundColor:'#0A1128'},pk:{flexDirection:'row',justifyContent:'space-between',margin:12,padding:14,backgroundColor:'#16213E',borderRadius:10,borderWidth:1,borderColor:'#2a3550'},pkt:{color:'#FFF',fontSize:14},pkp:{color:'#666',fontSize:14},pka:{color:'#D4AF37',fontSize:12},
+  bal:{marginHorizontal:12,padding:12,backgroundColor:'#16213E',borderRadius:10,alignItems:'center'},bl:{color:'#10B981',fontSize:18,fontWeight:'bold'},
+  card:{backgroundColor:'#16213E',padding:14,marginHorizontal:12,marginVertical:4,borderRadius:12},cn:{color:'#D4AF37',fontSize:13,fontWeight:'bold'},cd:{color:'#FFF',fontSize:12,marginTop:4},
+  row:{flexDirection:'row',justifyContent:'space-between',marginTop:4},dr:{color:'#EF4444',fontSize:11},cr:{color:'#10B981',fontSize:11},et:{color:'#666',textAlign:'center',marginTop:40},
 });
