@@ -5,9 +5,11 @@ let dbInstance: any = null;
 export async function getDatabase() {
   if (!dbInstance) {
     dbInstance = await SQLite.openDatabaseAsync("accounting.db");
+    await db.runAsync("DROP TABLE IF EXISTS currencies");
     await createAllTables(dbInstance);
     const { seedDefaultData } = await import("./seed");
     await seedDefaultData();("accounting.db");
+    await db.runAsync("DROP TABLE IF EXISTS currencies");
     await createAllTables(dbInstance);
   }
   return dbInstance;

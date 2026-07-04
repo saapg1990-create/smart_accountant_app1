@@ -3,7 +3,35 @@ import { query, execute } from '../db/database';
 export const DataService = {
   // حسابات
   getAccounts: () => query('SELECT * FROM accounts WHERE isActive=1 ORDER BY code'),
-  addAccount: (data: any) => execute('INSERT INTO accounts (id, code, name, type, parentId, balance) VALUES (?,?,?,?,?,?)', [data.id, data.code, data.name, data.type, data.parentId, data.balance||0]),
+  addAccount: async (data: any) => {
+    const id = data.id || 'acc-' + Date.now();
+    await execute('INSERT INTO accounts (id, code, name, type, parentId, balance) VALUES (?,?,?,?,?,?)', [id, data.code, data.name, data.type, data.parentId, data.balance||0]);
+    
+    // ✅ إذا فيه رصيد افتتاحي، نسجل قيد تلقائي
+    if ((data.balance || 0) > 0) {
+      const entryId = 'je-open-' + Date.now();
+      const entryNumber = 'OPEN-' + Date.now().toString().slice(-6);
+      const date = new Date().toISOString().split('T')[0];
+      const desc = `رصيد افتتاحي - ${data.name}`;
+      const isDebit = ['أصل', 'مصروف'].includes(data.type); // أصل ومصروف = مدين
+      const isCredit = ['خصم', 'ملكية', 'إيراد'].includes(data.type); // خصم وملكية وإيراد = دائن
+      
+      const total = data.balance || 0;
+      
+      await execute('INSERT INTO journal_entries (id, number, date, description, totalDebit, totalCredit) VALUES (?,?,?,?,?,?)', [entryId, entryNumber, date, desc, isDebit ? total : 0, isCredit ? total : 0]);
+      
+      if (isDebit) {
+        // مدين الحساب، دائن رأس المال
+        await execute('INSERT INTO journal_items (id, entryId, accountId, debit, credit, description) VALUES (?,?,?,?,?,?)', ['ji-' + Date.now() + 'a', entryId, id, total, 0, 'مدين - رصيد افتتاحي']);
+        await execute('INSERT INTO journal_items (id, entryId, accountId, debit, credit, description) VALUES (?,?,?,?,?,?)', ['ji-' + Date.now() + 'b', entryId, '31', 0, total, 'دائن - رأس المال']);
+      } else if (isCredit) {
+        // مدين رأس المال، دائن الحساب
+        await execute('INSERT INTO journal_items (id, entryId, accountId, debit, credit, description) VALUES (?,?,?,?,?,?)', ['ji-' + Date.now() + 'a', entryId, '31', total, 0, 'مدين - رأس المال']);
+        await execute('INSERT INTO journal_items (id, entryId, accountId, debit, credit, description) VALUES (?,?,?,?,?,?)', ['ji-' + Date.now() + 'b', entryId, id, 0, total, 'دائن - رصيد افتتاحي']);
+      }
+    }
+    return id;
+  },
   deleteAccount: (id: string) => execute('DELETE FROM accounts WHERE id=?', [id]),
 
   // عملاء
@@ -21,15 +49,31 @@ export const DataService = {
 
   // صناديق
   getCashBoxes: () => query('SELECT * FROM cashBoxes ORDER BY name'),
-  addCashBox: (data: any) => execute('INSERT INTO cashBoxes (id, name, balance) VALUES (?,?,?)', [data.id, data.name, data.balance||0]),
+  addCashBox: async (data: any) => {
+    await execute('INSERT INTO cashBoxes (id, name, balance) VALUES (?,?,?)', [data.id, data.name, data.balance||0]);
+    // إضافة حساب للصندوق في الدليل
+    if ((data.balance || 0) > 0) {
+      await DataService.addAccount({ id: data.id, code: 'CSH-' + data.id.slice(-4), name: data.name, type: 'أصل', parentId: '11', balance: data.balance||0 });
+    }
+  },
 
   // بنوك
   getBanks: () => query('SELECT * FROM banks ORDER BY name'),
-  addBank: (data: any) => execute('INSERT INTO banks (id, name, accountNumber, balance) VALUES (?,?,?,?)', [data.id, data.name, data.accountNumber, data.balance||0]),
+  addBank: async (data: any) => {
+    await execute('INSERT INTO banks (id, name, accountNumber, balance) VALUES (?,?,?,?)', [data.id, data.name, data.accountNumber, data.balance||0]);
+    if ((data.balance || 0) > 0) {
+      await DataService.addAccount({ id: data.id, code: 'BNK-' + data.id.slice(-4), name: data.name, type: 'أصل', parentId: '11', balance: data.balance||0 });
+    }
+  },
 
   // محافظ
   getEwallets: () => query('SELECT * FROM ewallets ORDER BY name'),
-  addEwallet: (data: any) => execute('INSERT INTO ewallets (id, name, phone, balance) VALUES (?,?,?,?)', [data.id, data.name, data.phone, data.balance||0]),
+  addEwallet: async (data: any) => {
+    await execute('INSERT INTO ewallets (id, name, phone, balance) VALUES (?,?,?,?)', [data.id, data.name, data.phone, data.balance||0]);
+    if ((data.balance || 0) > 0) {
+      await DataService.addAccount({ id: data.id, code: 'EWL-' + data.id.slice(-4), name: data.name, type: 'أصل', parentId: '11', balance: data.balance||0 });
+    }
+  },
 
   // عملات
   getCurrencies: () => query('SELECT * FROM currencies ORDER BY code'),
@@ -48,12 +92,16 @@ export const DataService = {
       await execute('UPDATE accounts SET balance = balance + ? - ? WHERE id = ?', [line.debit, line.credit, line.accountId]);
     }
   },
-};
 
-// دوال إضافية للعلامات والمجموعات والمندوبين
-DataService.getBrands = () => query('SELECT * FROM brands ORDER BY name');
-DataService.addBrand = (data: any) => execute('INSERT INTO brands (id, name) VALUES (?,?)', [data.id, data.name]);
-DataService.getGroups = () => query('SELECT * FROM categories ORDER BY name');
-DataService.addGroup = (data: any) => execute('INSERT INTO categories (id, name) VALUES (?,?)', [data.id, data.name]);
-DataService.getReps = () => query('SELECT * FROM salesReps ORDER BY name');
-DataService.addRep = (data: any) => execute('INSERT INTO salesReps (id, name, phone) VALUES (?,?,?)', [data.id, data.name, data.phone]);
+  // علامات
+  getBrands: () => query('SELECT * FROM brands ORDER BY name'),
+  addBrand: (data: any) => execute('INSERT INTO brands (id, name) VALUES (?,?)', [data.id, data.name]),
+  
+  // مجموعات
+  getGroups: () => query('SELECT * FROM categories ORDER BY name'),
+  addGroup: (data: any) => execute('INSERT INTO categories (id, name) VALUES (?,?)', [data.id, data.name]),
+  
+  // مندوبين
+  getReps: () => query('SELECT * FROM salesReps ORDER BY name'),
+  addRep: (data: any) => execute('INSERT INTO salesReps (id, name, phone) VALUES (?,?,?)', [data.id, data.name, data.phone]),
+};
