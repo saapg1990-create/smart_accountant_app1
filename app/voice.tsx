@@ -1,8 +1,9 @@
+import { DataService } from 'src/services/dataService';
 import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator, Vibration } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLocalTable } from '../hooks/useLocalStore';
+// import { useLocalTable } from '../hooks/useLocalStore';
 import { useAccountStore } from '../src/store/useAccountStore';
 
 // ✅ محرك تحليل الأوامر الصوتية الذكي

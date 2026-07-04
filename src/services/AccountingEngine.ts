@@ -1,207 +1,201 @@
-import * as SQLite from 'expo-sqlite';
+import { execute, query } from '../db/database';
 
-// ✅ محرك المحاسبة الموحد - يستخدم في جميع الشاشات
-class AccountingEngine {
-  private db: any = null;
-  private static instance: AccountingEngine;
-
-  static getInstance(): AccountingEngine {
-    if (!AccountingEngine.instance) AccountingEngine.instance = new AccountingEngine();
-    return AccountingEngine.instance;
-  }
-
-  setDatabase(db: any) { this.db = db; }
-
-  // ============== العمليات المحاسبية التلقائية ==============
-
+export const AccountingEngine = {
   /**
    * ترحيل فاتورة مبيعات
-   * @param invoiceType 'cash' | 'credit'
-   * @param cashAccountId حساب الصندوق (للنقدي)
-   * @param customerAccountId حساب العميل (للآجل)
-   * @param revenueAccountId حساب المبيعات
-   * @param taxAccountId حساب الضريبة
-   * @param total المبلغ الإجمالي
-   * @param subtotal المبلغ قبل الضريبة
-   * @param taxAmount مبلغ الضريبة
+   * نقدي: مدين الصندوق، دائن المبيعات
+   * آجل: مدين العميل، دائن المبيعات
    */
-  async postSalesInvoice(
-    invoiceType: 'cash' | 'credit',
+  postSalesInvoice: async (data: {
+    type: 'cash' | 'credit',
     cashAccountId: string,
     customerAccountId: string,
-    revenueAccountId: string,
-    taxAccountId: string,
     total: number,
-    subtotal: number,
-    taxAmount: number,
     date: string,
-    description: string
-  ) {
-    if (!this.db) return;
-    const entryId = 'je-' + Date.now();
-    const number = 'SINV-' + Date.now().toString().slice(-6);
-
-    await this.db.runAsync(
-      'INSERT INTO journal_entries (id, number, date, description, totalDebit, totalCredit, isPosted) VALUES (?,?,?,?,?,?,1)',
-      [entryId, number, date, description, total, total]
-    );
-
+    customerName: string,
+    invoiceNumber: string
+  }) => {
+    const isCash = data.type === 'cash';
+    const debitAccount = isCash ? data.cashAccountId : data.customerAccountId;
+    const description = `فاتورة مبيعات ${data.invoiceNumber} - ${data.customerName}`;
+    
+    const entryId = 'je-sales-' + Date.now();
+    await execute('INSERT INTO journal_entries (id, number, date, description, totalDebit, totalCredit) VALUES (?,?,?,?,?,?)', 
+      [entryId, data.invoiceNumber, data.date, description, data.total, data.total]);
+    
     // مدين: الصندوق أو العميل
-    const debitAccount = invoiceType === 'cash' ? cashAccountId : customerAccountId;
-    await this.addJournalItem(entryId, debitAccount, total, 0, 'مدين');
-
+    await execute('INSERT INTO journal_items (id, entryId, accountId, debit, credit, description) VALUES (?,?,?,?,?,?)',
+      ['ji-' + Date.now() + '1', entryId, debitAccount, data.total, 0, `مدين ${isCash ? 'الصندوق' : 'العميل'}`]);
+    
     // دائن: المبيعات
-    await this.addJournalItem(entryId, revenueAccountId, 0, subtotal, 'دائن المبيعات');
-
-    // دائن: الضريبة (إذا وجدت)
-    if (taxAmount > 0) {
-      await this.addJournalItem(entryId, taxAccountId, 0, taxAmount, 'دائن ضريبة المبيعات');
-    }
-
-    // تحديث رصيد الصندوق أو العميل
-    await this.updateAccountBalance(debitAccount, total);
+    await execute('INSERT INTO journal_items (id, entryId, accountId, debit, credit, description) VALUES (?,?,?,?,?,?)',
+      ['ji-' + Date.now() + '2', entryId, '411', 0, data.total, 'دائن المبيعات']);
+    
+    // تحديث الأرصدة
+    await execute('UPDATE accounts SET balance = balance + ? WHERE id = ?', [data.total, debitAccount]);
+    await execute('UPDATE accounts SET balance = balance - ? WHERE id = ?', [data.total, '411']);
+    
     return entryId;
-  }
+  },
 
   /**
    * ترحيل فاتورة مشتريات
    */
-  async postPurchaseInvoice(
-    invoiceType: 'cash' | 'credit',
+  postPurchaseInvoice: async (data: {
+    type: 'cash' | 'credit',
     cashAccountId: string,
     supplierAccountId: string,
-    expenseAccountId: string,
     total: number,
     date: string,
-    description: string
-  ) {
-    if (!this.db) return;
-    const entryId = 'je-' + Date.now();
-    const number = 'PINV-' + Date.now().toString().slice(-6);
-
-    await this.db.runAsync(
-      'INSERT INTO journal_entries (id, number, date, description, totalDebit, totalCredit, isPosted) VALUES (?,?,?,?,?,?,1)',
-      [entryId, number, date, description, total, total]
-    );
-
-    // مدين: المشتريات/المصروف
-    await this.addJournalItem(entryId, expenseAccountId, total, 0, 'مدين المشتريات');
-
-    // دائن: الصندوق أو المورد
-    const creditAccount = invoiceType === 'cash' ? cashAccountId : supplierAccountId;
-    await this.addJournalItem(entryId, creditAccount, 0, total, 'دائن');
+    supplierName: string,
+    invoiceNumber: string
+  }) => {
+    const isCash = data.type === 'cash';
+    const creditAccount = isCash ? data.cashAccountId : data.supplierAccountId;
+    const description = `فاتورة مشتريات ${data.invoiceNumber} - ${data.supplierName}`;
     
-    // تحديث رصيد الصندوق (ناقص) أو المورد (زائد)
-    if (invoiceType === 'cash') {
-      await this.updateAccountBalance(cashAccountId, -total);
-    } else {
-      await this.updateAccountBalance(supplierAccountId, total);
-    }
+    const entryId = 'je-purch-' + Date.now();
+    await execute('INSERT INTO journal_entries (id, number, date, description, totalDebit, totalCredit) VALUES (?,?,?,?,?,?)',
+      [entryId, data.invoiceNumber, data.date, description, data.total, data.total]);
+    
+    // مدين: المشتريات
+    await execute('INSERT INTO journal_items (id, entryId, accountId, debit, credit, description) VALUES (?,?,?,?,?,?)',
+      ['ji-' + Date.now() + '1', entryId, '511', data.total, 0, 'مدين المشتريات']);
+    
+    // دائن: الصندوق أو المورد
+    await execute('INSERT INTO journal_items (id, entryId, accountId, debit, credit, description) VALUES (?,?,?,?,?,?)',
+      ['ji-' + Date.now() + '2', entryId, creditAccount, 0, data.total, `دائن ${isCash ? 'الصندوق' : 'المورد'}`]);
+    
+    // تحديث الأرصدة
+    await execute('UPDATE accounts SET balance = balance + ? WHERE id = ?', [data.total, '511']);
+    await execute('UPDATE accounts SET balance = balance - ? WHERE id = ?', [data.total, creditAccount]);
+    
     return entryId;
-  }
+  },
 
   /**
-   * ترحيل سند قبض/صرف
+   * ترحيل سند قبض
    */
-  async postVoucher(
-    type: 'receipt' | 'payment',
-    voucherType: 'cash' | 'bank' | 'ewallet',
-    sourceAccountId: string,
-    targetAccountId: string,
+  postReceiptVoucher: async (data: {
+    cashAccountId: string,
+    accountId: string,
     amount: number,
     date: string,
-    description: string
-  ) {
-    if (!this.db) return;
-    const entryId = 'je-' + Date.now();
-    const number = type === 'receipt' ? 'RV-' : 'PV-' + Date.now().toString().slice(-6);
-
-    await this.db.runAsync(
-      'INSERT INTO journal_entries (id, number, date, description, totalDebit, totalCredit, isPosted) VALUES (?,?,?,?,?,?,1)',
-      [entryId, number, date, description, amount, amount]
-    );
-
-    if (type === 'receipt') {
-      // قبض: مدين الصندوق/البنك، دائن الحساب
-      await this.addJournalItem(entryId, sourceAccountId, amount, 0, 'مدين');
-      await this.addJournalItem(entryId, targetAccountId, 0, amount, 'دائن');
-      await this.updateAccountBalance(sourceAccountId, amount);
-    } else {
-      // صرف: مدين الحساب، دائن الصندوق/البنك
-      await this.addJournalItem(entryId, targetAccountId, amount, 0, 'مدين');
-      await this.addJournalItem(entryId, sourceAccountId, 0, amount, 'دائن');
-      await this.updateAccountBalance(sourceAccountId, -amount);
-    }
+    description: string,
+    voucherNumber: string
+  }) => {
+    const entryId = 'je-recv-' + Date.now();
+    await execute('INSERT INTO journal_entries (id, number, date, description, totalDebit, totalCredit) VALUES (?,?,?,?,?,?)',
+      [entryId, data.voucherNumber, data.date, data.description, data.amount, data.amount]);
+    
+    // مدين: الصندوق
+    await execute('INSERT INTO journal_items (id, entryId, accountId, debit, credit, description) VALUES (?,?,?,?,?,?)',
+      ['ji-' + Date.now() + '1', entryId, data.cashAccountId, data.amount, 0, 'مدين الصندوق']);
+    
+    // دائن: الحساب
+    await execute('INSERT INTO journal_items (id, entryId, accountId, debit, credit, description) VALUES (?,?,?,?,?,?)',
+      ['ji-' + Date.now() + '2', entryId, data.accountId, 0, data.amount, 'دائن الحساب']);
+    
+    await execute('UPDATE accounts SET balance = balance + ? WHERE id = ?', [data.amount, data.cashAccountId]);
+    await execute('UPDATE accounts SET balance = balance - ? WHERE id = ?', [data.amount, data.accountId]);
+    
     return entryId;
-  }
+  },
 
   /**
-   * ترحيل صرف/توريد مخزون
+   * ترحيل سند صرف
    */
-  async postInventoryMovement(
-    type: 'issue' | 'receipt',
-    warehouseAccountId: string,
-    inventoryAccountId: string,
-    total: number,
+  postPaymentVoucher: async (data: {
+    cashAccountId: string,
+    accountId: string,
+    amount: number,
     date: string,
-    description: string
-  ) {
-    if (!this.db) return;
-    const entryId = 'je-' + Date.now();
-    const number = (type === 'issue' ? 'OUT-' : 'IN-') + Date.now().toString().slice(-6);
-
-    await this.db.runAsync(
-      'INSERT INTO journal_entries (id, number, date, description, totalDebit, totalCredit, isPosted) VALUES (?,?,?,?,?,?,1)',
-      [entryId, number, date, description, total, total]
-    );
-
-    if (type === 'issue') {
-      // صرف: مدين المصروف، دائن المخزون
-      await this.addJournalItem(entryId, warehouseAccountId, total, 0, 'مدين صرف مخزون');
-      await this.addJournalItem(entryId, inventoryAccountId, 0, total, 'دائن المخزون');
-    } else {
-      // توريد: مدين المخزون، دائن المورد/الحساب
-      await this.addJournalItem(entryId, inventoryAccountId, total, 0, 'مدين المخزون');
-      await this.addJournalItem(entryId, warehouseAccountId, 0, total, 'دائن التوريد');
-    }
+    description: string,
+    voucherNumber: string
+  }) => {
+    const entryId = 'je-pay-' + Date.now();
+    await execute('INSERT INTO journal_entries (id, number, date, description, totalDebit, totalCredit) VALUES (?,?,?,?,?,?)',
+      [entryId, data.voucherNumber, data.date, data.description, data.amount, data.amount]);
+    
+    // مدين: الحساب
+    await execute('INSERT INTO journal_items (id, entryId, accountId, debit, credit, description) VALUES (?,?,?,?,?,?)',
+      ['ji-' + Date.now() + '1', entryId, data.accountId, data.amount, 0, 'مدين الحساب']);
+    
+    // دائن: الصندوق
+    await execute('INSERT INTO journal_items (id, entryId, accountId, debit, credit, description) VALUES (?,?,?,?,?,?)',
+      ['ji-' + Date.now() + '2', entryId, data.cashAccountId, 0, data.amount, 'دائن الصندوق']);
+    
+    await execute('UPDATE accounts SET balance = balance + ? WHERE id = ?', [data.amount, data.accountId]);
+    await execute('UPDATE accounts SET balance = balance - ? WHERE id = ?', [data.amount, data.cashAccountId]);
+    
     return entryId;
-  }
+  },
 
-  // ============== دوال مساعدة ==============
+  /**
+   * ترحيل قيد مزدوج عام
+   */
+  postDoubleEntry: async (data: {
+    date: string,
+    description: string,
+    lines: { accountId: string, debit: number, credit: number, description: string }[]
+  }) => {
+    const totalDebit = data.lines.reduce((s, l) => s + l.debit, 0);
+    const totalCredit = data.lines.reduce((s, l) => s + l.credit, 0);
+    
+    if (Math.abs(totalDebit - totalCredit) > 0.001) {
+      throw new Error('القيد غير متوازن! يجب تساوي المدين والدائن');
+    }
+    
+    const entryId = 'je-gen-' + Date.now();
+    const number = 'JV-' + Date.now().toString().slice(-6);
+    
+    await execute('INSERT INTO journal_entries (id, number, date, description, totalDebit, totalCredit) VALUES (?,?,?,?,?,?)',
+      [entryId, number, data.date, data.description, totalDebit, totalCredit]);
+    
+    for (const line of data.lines) {
+      if (line.debit === 0 && line.credit === 0) continue;
+      await execute('INSERT INTO journal_items (id, entryId, accountId, debit, credit, description) VALUES (?,?,?,?,?,?)',
+        ['ji-' + Date.now() + Math.random(), entryId, line.accountId, line.debit, line.credit, line.description]);
+      await execute('UPDATE accounts SET balance = balance + ? - ? WHERE id = ?', [line.debit, line.credit, line.accountId]);
+    }
+    
+    return entryId;
+  },
 
-  async addJournalItem(entryId: string, accountId: string, debit: number, credit: number, description: string) {
-    if (!accountId || (debit === 0 && credit === 0)) return;
-    const id = 'ji-' + Date.now() + Math.random().toString(36).slice(2, 6);
-    await this.db.runAsync(
-      'INSERT INTO journal_items (id, entryId, accountId, debit, credit, description) VALUES (?,?,?,?,?,?)',
-      [id, entryId, accountId, debit, credit, description]
-    );
-  }
+  /**
+   * الحصول على ميزان المراجعة
+   */
+  getTrialBalance: async () => {
+    const accounts = await query('SELECT * FROM accounts WHERE isActive=1 ORDER BY code');
+    const totalDebit = accounts.filter((a: any) => ['أصل','مصروف'].includes(a.type)).reduce((s: number, a: any) => s + (a.balance || 0), 0);
+    const totalCredit = accounts.filter((a: any) => ['خصم','ملكية','إيراد'].includes(a.type)).reduce((s: number, a: any) => s + (a.balance || 0), 0);
+    return { accounts, totalDebit, totalCredit, balanced: Math.abs(totalDebit - totalCredit) < 0.01 };
+  },
 
-  async updateAccountBalance(accountId: string, amount: number) {
-    if (!accountId || amount === 0) return;
-    await this.db.runAsync('UPDATE accounts SET balance = balance + ? WHERE id = ?', [amount, accountId]);
-  }
-
-  // ============== استعلامات موحدة ==============
-
-  async getAccounts(type?: string) {
-    let sql = 'SELECT * FROM accounts WHERE isActive=1';
-    if (type) sql += ' AND type=?';
-    return this.db?.getAllAsync(sql + ' ORDER BY code', type ? [type] : []) || [];
-  }
-
-  async getItems() { return this.db?.getAllAsync('SELECT * FROM items ORDER BY name') || []; }
-  async getUnits() { return this.db?.getAllAsync('SELECT * FROM units ORDER BY name') || []; }
-  async getGroups() { return this.db?.getAllAsync('SELECT * FROM categories ORDER BY name') || []; }
-  async getWarehouses() { return this.db?.getAllAsync('SELECT * FROM warehouses ORDER BY name') || []; }
-  async getCustomers() { return this.db?.getAllAsync('SELECT * FROM customers ORDER BY name') || []; }
-  async getSuppliers() { return this.db?.getAllAsync('SELECT * FROM suppliers ORDER BY name') || []; }
-  async getCurrencies() { return this.db?.getAllAsync('SELECT * FROM currencies ORDER BY code') || []; }
-  async getBanks() { return this.db?.getAllAsync('SELECT * FROM banks ORDER BY name') || []; }
-  async getCashBoxes() { return this.db?.getAllAsync('SELECT * FROM cashBoxes ORDER BY name') || []; }
-  async getBrands() { return this.db?.getAllAsync('SELECT * FROM brands ORDER BY name') || []; }
-  async getReps() { return this.db?.getAllAsync('SELECT * FROM salesReps ORDER BY name') || []; }
-}
-
-export const accountingEngine = AccountingEngine.getInstance();
+  /**
+   * إقفال الفترة المالية
+   */
+  closePeriod: async (date: string) => {
+    // ترحيل صافي الإيرادات إلى الأرباح المحتجزة
+    const revenues = await query("SELECT * FROM accounts WHERE type='إيراد' AND isActive=1");
+    const expenses = await query("SELECT * FROM accounts WHERE type='مصروف' AND isActive=1");
+    
+    const totalRevenue = revenues.reduce((s: number, a: any) => s + (a.balance || 0), 0);
+    const totalExpense = expenses.reduce((s: number, a: any) => s + (a.balance || 0), 0);
+    const netIncome = totalRevenue - totalExpense;
+    
+    if (netIncome !== 0) {
+      await AccountingEngine.postDoubleEntry({
+        date,
+        description: 'إقفال الفترة - ترحيل صافي الدخل',
+        lines: [
+          { accountId: '41', debit: totalRevenue, credit: 0, description: 'إقفال الإيرادات' },
+          { accountId: '51', debit: 0, credit: totalExpense, description: 'إقفال المصروفات' },
+          { accountId: '321', debit: netIncome < 0 ? Math.abs(netIncome) : 0, credit: netIncome > 0 ? netIncome : 0, description: 'صافي الدخل' },
+        ]
+      });
+    }
+    
+    return { totalRevenue, totalExpense, netIncome };
+  },
+};

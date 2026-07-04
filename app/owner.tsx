@@ -1,9 +1,10 @@
+import { DataService } from 'src/services/dataService';
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, FlatList } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDatabase } from '../context/DatabaseContext';
-import { useLocalTable } from '../hooks/useLocalStore';
+// import { useLocalTable } from '../hooks/useLocalStore';
 
 export default function OwnerScreen() {
   const router = useRouter(); const insets = useSafeAreaInsets();

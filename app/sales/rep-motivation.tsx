@@ -1,8 +1,9 @@
+import { DataService } from '../src/services/dataService';
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLocalTable } from '../../hooks/useLocalStore';
+// import { useLocalTable } from '../../hooks/useLocalStore';
 
 const MOTIVATION_MSGS = [
   '🌟 أنت نجم الفريق! استمر في التألق!',

@@ -1,10 +1,11 @@
+import { DataService } from '../src/services/dataService';
 import { ControlButtons, ControlHeader } from "../../src/components/ui/ControlButtons";
       <ControlButtons showAdd showEdit showDelete showSearch showPrint showRefresh showExport onAdd={()=>setShowModal(true)} />
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, StatusBar, Alert, Modal, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLocalTable } from '../../hooks/useLocalStore';
+// import { useLocalTable } from '../../hooks/useLocalStore';
 import { PickerModal } from '../../src/components/ui/PickerModal';
 
 export default function InventoryIssueScreen() {

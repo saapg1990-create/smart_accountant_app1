@@ -1,8 +1,9 @@
+import { DataService } from '../src/services/dataService';
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLocalTable } from '../../hooks/useLocalStore';
+// import { useLocalTable } from '../../hooks/useLocalStore';
 import { useAccountStore } from '../../src/store/useAccountStore';
 
 export default function DashboardScreen() {

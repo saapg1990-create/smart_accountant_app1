@@ -49,6 +49,8 @@ export default function RootLayout() {
           <Stack.Screen name="sales/rep-motivation" />
           <Stack.Screen name="reports/index" />
           <Stack.Screen name="reports/alerts" />
+          <Stack.Screen name="reports/income-statement" />
+          <Stack.Screen name="reports/balance-sheet" />
           <Stack.Screen name="inventory/qty-report" />
           <Stack.Screen name="voice" />
           <Stack.Screen name="settings" />
