@@ -13,6 +13,8 @@ const ICONS: any = {
   'الصندوق':'💵','البنوك':'🏦','المحافظ':'📱','العملاء':'👥','المخزون':'📦',
 };
 
+const CURRENCY_SYMBOLS: any = { 'YER': '﷼', 'USD': '$', 'SAR': '﷼', 'EUR': '€', 'GBP': '£' };
+
 export default function AccountsScreen() {
   const router = useRouter(); const insets = useSafeAreaInsets();
   const [accounts, setAccounts] = useState<any[]>([]);
@@ -38,6 +40,7 @@ export default function AccountsScreen() {
     setRefreshKey(prev => prev + 1);
   };
 
+  const getSymbol = (code: string) => CURRENCY_SYMBOLS[code] || code;
   const getColor = (t: string) => ({ 'اصل':'#D4AF37','خصم':'#EF4444','ايراد':'#10B981','مصروف':'#3B82F6','ملكية':'#F59E0B' }[t] || '#6B7280');
 
   const openAdd = (parentId = '', parentName = '') => {
@@ -50,8 +53,8 @@ export default function AccountsScreen() {
     setEditMode(true); setEditingId(acc.id);
     setForm({
       name: acc.name, code: acc.code, type: acc.type, parentId: acc.parentId || '', parentName: '',
-      balance: String(acc.balance || ''), currency: acc.currency || 'YER',
-      isDebit: ['اصل','مصروف'].includes(acc.type),
+      balance: String(Math.abs(acc.balance || 0)), currency: acc.currency || 'YER',
+      isDebit: (acc.balance || 0) >= 0,
       bankAccount: acc.bankAccount || '', walletPhone: acc.walletPhone || '', notes: acc.notes || ''
     });
     setShowForm(true);
@@ -111,17 +114,20 @@ export default function AccountsScreen() {
       <TextInput style={st.si} placeholder="🔍 بحث..." placeholderTextColor="#666" value={searchQuery} onChangeText={setSearchQuery} />
       <FlatList key={refreshKey} data={displayList} keyExtractor={(i,idx) => i.data.id+idx} renderItem={({ item }) => {
         const acc = item.data; const ml = (item.level-1)*20;
+        const sym = getSymbol(acc.currency || 'YER');
         return (
           <TouchableOpacity style={[item.level===1?st.l1:item.level===2?st.l2:st.l3, {marginLeft:ml, borderRightColor:getColor(acc.type), borderRightWidth:item.level===1?5:3}]} onPress={() => openEdit(acc)} onLongPress={() => handleDelete(acc)}>
             <View style={{flexDirection:'row',alignItems:'center'}}>
               <Text style={{fontSize:item.level===1?24:18}}>{ICONS[acc.name]||'📋'}</Text>
               <View style={{flex:1,marginLeft:8}}>
                 <Text style={{color:'#FFF',fontSize:item.level===1?15:13,fontWeight:'bold',textAlign:'right'}}>{acc.name}</Text>
-                <Text style={{color:'#94a3b8',fontSize:9,textAlign:'right'}}>كود: {acc.code} | 💱 {acc.currency === 'YER' ? '﷼' : acc.currency === 'USD' ? '$' : acc.currency === 'SAR' ? '﷼' : acc.currency}</Text>
+                <Text style={{color:'#94a3b8',fontSize:9,textAlign:'right'}}>كود: {acc.code} | 💱 {acc.currency} {sym}</Text>
                 {acc.bankAccount ? <Text style={{color:'#3B82F6',fontSize:9,textAlign:'right'}}>🏦 {acc.bankAccount}</Text> : null}
                 {acc.walletPhone ? <Text style={{color:'#10B981',fontSize:9,textAlign:'right'}}>📱 {acc.walletPhone}</Text> : null}
               </View>
-              <Text style={{color:(acc.balance||0)>=0?'#10B981':'#EF4444',fontSize:13,fontWeight:'bold'}}>{Math.abs(acc.balance||0).toLocaleString()} ﷼</Text>
+              <Text style={{color:(acc.balance||0)>=0?'#10B981':'#EF4444',fontSize:13,fontWeight:'bold'}}>
+                {Math.abs(acc.balance||0).toLocaleString()} {sym}
+              </Text>
               <TouchableOpacity style={{backgroundColor:'#10B98120',width:24,height:24,borderRadius:12,justifyContent:'center',alignItems:'center',marginLeft:6}} onPress={() => openAdd(acc.id, acc.name)}>
                 <Text style={{color:'#10B981',fontSize:12}}>+</Text>
               </TouchableOpacity>
@@ -138,7 +144,10 @@ export default function AccountsScreen() {
           {!form.parentId && <><Text style={st.fl}>النوع</Text><View style={{flexDirection:'row',gap:6}}>{types.filter(t=>t!=='الكل').map(t=><TouchableOpacity key={t} style={[st.tb,form.type===t&&st.tba]} onPress={()=>setForm({...form,type:t})}><Text style={[st.ttx,form.type===t&&st.ttxa]}>{t}</Text></TouchableOpacity>)}</View></>}
           
           <Text style={st.fl}>العملة</Text>
-          <TouchableOpacity style={st.pk} onPress={()=>setShowCurPicker(true)}><Text style={st.pkt}>{form.currency}</Text><Text style={st.pka}>▼</Text></TouchableOpacity>
+          <TouchableOpacity style={st.pk} onPress={()=>setShowCurPicker(true)}>
+            <Text style={st.pkt}>{form.currency} {getSymbol(form.currency)}</Text>
+            <Text style={st.pka}>▼</Text>
+          </TouchableOpacity>
           
           <Text style={st.fl}>الرصيد الافتتاحي</Text>
           <TextInput style={st.fi} value={form.balance} onChangeText={v=>setForm({...form,balance:v})} keyboardType="numeric" />
@@ -161,7 +170,7 @@ export default function AccountsScreen() {
           <TouchableOpacity style={st.sb} onPress={handleSave}><Text style={st.sbt}>💾 حفظ</Text></TouchableOpacity>
         </ScrollView></View></View>
       </Modal>
-      <PickerModal visible={showCurPicker} title="اختيار العملة" data={currencies} displayField="code" onSelect={(i:any)=>setForm({...form,currency:i.code})} onClose={()=>setShowCurPicker(false)} />
+      <PickerModal visible={showCurPicker} title="اختيار العملة" data={currencies} displayField="code" subField="name" onSelect={(i:any)=>setForm({...form,currency:i.code})} onClose={()=>setShowCurPicker(false)} />
     </View>
   );
 }

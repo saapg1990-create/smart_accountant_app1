@@ -91,3 +91,15 @@ export const DataService: any = {
   getUnits: () => query('SELECT * FROM units ORDER BY name'),
   addUnit: (data: any) => execute('INSERT INTO units (id, name) VALUES (?,?)', [data.id, data.name]),
 };
+
+// دالة مساعدة: تحويل كود العملة إلى رمز
+DataService.getCurrencySymbol = (code: string) => {
+  const symbols: any = { 'YER': '﷼', 'USD': '$', 'SAR': '﷼', 'EUR': '€', 'GBP': '£' };
+  return symbols[code] || code;
+};
+
+// تحديث: جلب العملات مع الرموز
+DataService.getCurrenciesWithSymbols = async () => {
+  const currencies = await DataService.getCurrencies();
+  return currencies.map((c: any) => ({ ...c, symbol: DataService.getCurrencySymbol(c.code) }));
+};
