@@ -117,7 +117,7 @@ export default function AccountsScreen() {
               <Text style={{fontSize:item.level===1?24:18}}>{ICONS[acc.name]||'📋'}</Text>
               <View style={{flex:1,marginLeft:8}}>
                 <Text style={{color:'#FFF',fontSize:item.level===1?15:13,fontWeight:'bold',textAlign:'right'}}>{acc.name}</Text>
-                <Text style={{color:'#94a3b8',fontSize:9,textAlign:'right'}}>كود: {acc.code} | 💱 {acc.currency}</Text>
+                <Text style={{color:'#94a3b8',fontSize:9,textAlign:'right'}}>كود: {acc.code} | 💱 {acc.currency === 'YER' ? '﷼' : acc.currency === 'USD' ? '$' : acc.currency === 'SAR' ? '﷼' : acc.currency}</Text>
                 {acc.bankAccount ? <Text style={{color:'#3B82F6',fontSize:9,textAlign:'right'}}>🏦 {acc.bankAccount}</Text> : null}
                 {acc.walletPhone ? <Text style={{color:'#10B981',fontSize:9,textAlign:'right'}}>📱 {acc.walletPhone}</Text> : null}
               </View>

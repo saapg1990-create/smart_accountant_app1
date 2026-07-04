@@ -13,7 +13,7 @@ export async function getDatabase() {
 
 async function createAllTables(db: any) {
   const tables = [
-    "CREATE TABLE IF NOT EXISTS accounts (id TEXT PRIMARY KEY, code TEXT, name TEXT NOT NULL, type TEXT, parentId TEXT DEFAULT '', balance REAL DEFAULT 0, isActive INTEGER DEFAULT 1)",
+    "CREATE TABLE IF NOT EXISTS accounts (id TEXT PRIMARY KEY, code TEXT, name TEXT NOT NULL, type TEXT, parentId TEXT DEFAULT '', currency TEXT DEFAULT 'YER', balance REAL DEFAULT 0, isActive INTEGER DEFAULT 1, bankAccount TEXT DEFAULT '', walletPhone TEXT DEFAULT '', notes TEXT DEFAULT '')",
     "CREATE TABLE IF NOT EXISTS customers (id TEXT PRIMARY KEY, code TEXT, name TEXT NOT NULL, phone TEXT DEFAULT '', address TEXT DEFAULT '', balance REAL DEFAULT 0)",
     "CREATE TABLE IF NOT EXISTS suppliers (id TEXT PRIMARY KEY, code TEXT, name TEXT NOT NULL, phone TEXT DEFAULT '', address TEXT DEFAULT '', balance REAL DEFAULT 0)",
     "CREATE TABLE IF NOT EXISTS items (id TEXT PRIMARY KEY, code TEXT, name TEXT NOT NULL, unitName TEXT, cost REAL DEFAULT 0, price REAL DEFAULT 0, quantity REAL DEFAULT 0)",
@@ -32,6 +32,7 @@ async function createAllTables(db: any) {
     "CREATE TABLE IF NOT EXISTS salesReps (id TEXT PRIMARY KEY, name TEXT NOT NULL, phone TEXT DEFAULT '')",
     "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)",
   ];
+  await createCurrencyBalances(db);
   for (const sql of tables) { try { await db.runAsync(sql); } catch(e) {} }
 }
 
@@ -79,7 +80,7 @@ async function seedAll(db: any) {
     const curCount = await db.getAllAsync("SELECT COUNT(*) as c FROM currencies");
     if (curCount[0]?.c === 0) {
       const cur = [["c1","YER","ريال يمني","ر.ي",1,1],["c2","USD","دولار","$",530,0],["c3","SAR","ريال سعودي","ر.س",141,0]];
-      for (const c of cur) await db.runAsync("INSERT INTO currencies (id, code, name, symbol, rate, isDefault) VALUES (?,?,?,?,?,?)", c);
+      for (const c of cur) await db.runAsync("INSERT OR IGNORE INTO currencies (id, code, name, symbol, rate, isDefault) VALUES (?,?,?,?,?,?)", c);
     }
   } catch(e) {}
   
@@ -94,4 +95,16 @@ export async function query(sql: string, params: any[] = []) {
 export async function execute(sql: string, params: any[] = []) {
   const db = await getDatabase();
   return db.runAsync(sql, params);
+}
+
+// جدول أرصدة العملات لكل حساب
+async function createCurrencyBalances(db: any) {
+  await db.runAsync(`CREATE TABLE IF NOT EXISTS account_currencies (
+    id TEXT PRIMARY KEY,
+    accountId TEXT NOT NULL,
+    currency TEXT NOT NULL,
+    balance REAL DEFAULT 0,
+    rate REAL DEFAULT 1,
+    UNIQUE(accountId, currency)
+  )`);
 }

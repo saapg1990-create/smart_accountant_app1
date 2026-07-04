@@ -12,29 +12,32 @@ export default function TrialBalanceScreen() {
   const [loading, setLoading] = useState(true);
 
   useFocusEffect(useCallback(() => { loadAll(); }, []));
-  const loadAll = async () => { setLoading(true); const data = await DataService.getAccounts(); setAccounts(data || []); setLoading(false); };
+  const loadAll = async () => { setLoading(true); setAccounts(await DataService.getAccounts() || []); setLoading(false); };
 
   const filtered = accounts.filter((a: any) => a.name?.includes(searchQuery) || a.code?.includes(searchQuery));
-  const totalDebit = filtered.filter((a: any) => ['اصل','مصروف'].includes(a.type)).reduce((s: number, a: any) => s + (a.balance || 0), 0);
-  const totalCredit = filtered.filter((a: any) => ['خصم','ايراد','ملكية'].includes(a.type)).reduce((s: number, a: any) => s + (a.balance || 0), 0);
+  const totalDebit = filtered.filter((a: any) => ['اصل','مصروف'].includes(a.type)).reduce((s: number, a: any) => s + Math.max(0, a.balance || 0), 0);
+  const totalCredit = filtered.filter((a: any) => ['خصم','ايراد','ملكية'].includes(a.type)).reduce((s: number, a: any) => s + Math.abs(Math.min(0, a.balance || 0)), 0);
+
+  const handlePrint = () => Alert.alert('🖨️', 'جاري طباعة ميزان المراجعة...');
+  const handleExport = () => Alert.alert('📤', 'جاري تصدير ميزان المراجعة...');
 
   return (
     <View style={[st.c, { paddingTop: insets.top }]}>
       <ControlHeader title="ميزان المراجعة" count={accounts.length} onBack={() => router.back()} />
-      <ControlButtons showSearch showPrint showRefresh showExport onRefresh={loadAll} />
+      <ControlButtons showSearch showPrint showRefresh showExport onRefresh={loadAll} onPrint={handlePrint} onExport={handleExport} />
       <TextInput style={st.si} placeholder="🔍 بحث..." placeholderTextColor="#666" value={searchQuery} onChangeText={setSearchQuery} />
       <View style={st.summary}>
-        <View style={[st.sb,{borderColor:'#EF4444'}]}><Text style={st.sl}>مدين</Text><Text style={[st.sv,{color:'#EF4444'}]}>{totalDebit.toLocaleString()}</Text></View>
-        <View style={[st.sb,{borderColor:'#10B981'}]}><Text style={st.sl}>دائن</Text><Text style={[st.sv,{color:'#10B981'}]}>{totalCredit.toLocaleString()}</Text></View>
+        <View style={[st.sb,{borderColor:'#EF4444'}]}><Text style={st.sl}>إجمالي مدين</Text><Text style={[st.sv,{color:'#EF4444'}]}>{totalDebit.toLocaleString()}</Text></View>
+        <View style={[st.sb,{borderColor:'#10B981'}]}><Text style={st.sl}>إجمالي دائن</Text><Text style={[st.sv,{color:'#10B981'}]}>{totalCredit.toLocaleString()}</Text></View>
         <View style={[st.sb,{borderColor:Math.abs(totalDebit-totalCredit)<0.01?'#10B981':'#EF4444'}]}><Text style={st.sl}>الفرق</Text><Text style={[st.sv,{color:Math.abs(totalDebit-totalCredit)<0.01?'#10B981':'#EF4444'}]}>{(totalDebit-totalCredit).toLocaleString()}</Text></View>
       </View>
       {loading ? <Text style={st.loading}>⏳ جاري التحميل...</Text> :
-        <FlatList data={filtered} keyExtractor={i => i.id} renderItem={({item}) => (
+        <FlatList data={filtered} keyExtractor={(i: any) => i.id} renderItem={({ item }: any) => (
           <View style={st.card}>
             <View style={st.row}><Text style={st.code}>{item.code}</Text><Text style={st.name}>{item.name}</Text></View>
             <View style={st.row}>
-              <Text style={st.dr}>{['اصل','مصروف'].includes(item.type) ? (item.balance||0).toLocaleString() : '-'}</Text>
-              <Text style={st.cr}>{['خصم','ايراد','ملكية'].includes(item.type) ? (item.balance||0).toLocaleString() : '-'}</Text>
+              <Text style={st.dr}>{item.balance > 0 ? (item.balance||0).toLocaleString() : '0'}</Text>
+              <Text style={st.cr}>{item.balance < 0 ? Math.abs(item.balance||0).toLocaleString() : '0'}</Text>
             </View>
           </View>
         )} ListEmptyComponent={<Text style={st.et}>لا توجد حسابات</Text>} contentContainerStyle={{padding:12}} />
