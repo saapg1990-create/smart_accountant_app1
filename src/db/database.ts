@@ -6,6 +6,8 @@ export async function getDatabase() {
   if (!dbInstance) {
     dbInstance = await SQLite.openDatabaseAsync("accounting.db");
     await createAllTables(dbInstance);
+    const { migrateDatabase } = await import("./migrate");
+    await migrateDatabase().catch(() => {});
     await seedAll(dbInstance);
   }
   return dbInstance;
