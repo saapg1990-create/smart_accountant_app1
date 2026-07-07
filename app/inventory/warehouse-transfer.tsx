@@ -6,7 +6,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, StatusBa
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // import { useLocalTable } from '../../hooks/useLocalStore';
-import { PickerModal } from '../../src/components/ui/PickerModal';
+import { Selector } from "../../src/components/common/Selector";
 
 export default function WarehouseTransferScreen() {
   const router = useRouter(); const insets = useSafeAreaInsets();
@@ -60,9 +60,9 @@ export default function WarehouseTransferScreen() {
             <TouchableOpacity style={st.sb} onPress={handleSave}><Text style={st.sbt}>💾 حفظ</Text></TouchableOpacity>
           </ScrollView></View></View>
       </Modal>
-      <PickerModal visible={showFromPicker} title="المخزن المحول منه" data={warehouses || []} displayField="name" subField="code" onSelect={(i: any) => setFormData({ ...formData, fromId: i.id, fromName: i.name })} onClose={() => setShowFromPicker(false)} />
-      <PickerModal visible={showToPicker} title="المخزن المستلم" data={warehouses || []} displayField="name" subField="code" onSelect={(i: any) => setFormData({ ...formData, toId: i.id, toName: i.name })} onClose={() => setShowToPicker(false)} />
-      <PickerModal visible={showItemPicker} title="اختيار الصنف" data={items || []} displayField="name" subField="code" onSelect={(i: any) => { updateLine(currentLineId, 'itemId', i.id); updateLine(currentLineId, 'itemName', i.name); }} onClose={() => setShowItemPicker(false)} />
+      <Selector visible={showFromPicker} title="المخزن المحول منه" data={warehouses || []} displayField="name" subField="code" onSelect={(i: any) => setFormData({ ...formData, fromId: i.id, fromName: i.name })} onClose={() => setShowFromPicker(false)} />
+      <Selector visible={showToPicker} title="المخزن المستلم" data={warehouses || []} displayField="name" subField="code" onSelect={(i: any) => setFormData({ ...formData, toId: i.id, toName: i.name })} onClose={() => setShowToPicker(false)} />
+      <Selector visible={showItemPicker} title="اختيار الصنف" data={items || []} displayField="name" subField="code" onSelect={(i: any) => { updateLine(currentLineId, 'itemId', i.id); updateLine(currentLineId, 'itemName', i.name); }} onClose={() => setShowItemPicker(false)} />
     </View>
   );
 }

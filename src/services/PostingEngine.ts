@@ -1,4 +1,4 @@
-import LocalStore from '../../hooks/useLocalStore';
+import LocalStore from '@hooks/useLocalStore';
 
 // ثوابت الحسابات
 export const DEFAULT_ACCOUNTS = {

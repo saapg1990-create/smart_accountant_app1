@@ -1,75 +1,140 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert, Modal, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, StatusBar, Alert, Modal, ScrollView } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { DataService } from '../../src/services/dataService';
+import { useAccountStore } from '../../src/store/useAccountStore';
 import { PickerModal } from '../../src/components/ui/PickerModal';
 import { ControlButtons, ControlHeader } from '../../src/components/ui/ControlButtons';
+import { injectJournalEntry } from '../../src/services/accountingService';
 
 export default function SalesInvoiceScreen() {
   const router = useRouter(); const insets = useSafeAreaInsets();
+  const { accounts, loadAccounts } = useAccountStore();
   const [invoices, setInvoices] = useState<any[]>([]);
-  const [customers, setCustomers] = useState<any[]>([]);
-  const [items, setItems] = useState<any[]>([]);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ date: new Date().toISOString().split('T')[0], customerId: '', customerName: '', itemId: '', itemName: '', qty: '1', price: '', total: '' });
-  const [showCustPicker, setShowCustPicker] = useState(false);
-  const [showItemPicker, setShowItemPicker] = useState(false);
+  const [currencies, setCurrencies] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [invoiceType, setInvoiceType] = useState<'cash'|'credit'>('cash');
+  const [showCashPicker, setShowCashPicker] = useState(false);
+  const [showCustomerPicker, setShowCustomerPicker] = useState(false);
+  const [showItemPicker, setShowItemPicker] = useState(false);
+  const [currentLineId, setCurrentLineId] = useState('');
+  const [formData, setFormData] = useState({ date: new Date().toISOString().split('T')[0], customerId: '', customerName: '', cashId: '', cashName: '', paid: '0', discount: '0', description: '' });
+  const [lines, setLines] = useState([{ id: '1', itemId: '', itemName: '', qty: '0', price: '0', total: '0' }]);
 
-  useFocusEffect(useCallback(() => { loadAll(); }, []));
-  const loadAll = async () => {
-    const inv = await DataService.getSalesInvoices(); setInvoices(inv || []);
-    const cust = await DataService.getCustomers(); setCustomers(cust || []);
-    const itm = await DataService.getItems(); setItems(itm || []);
-  };
+  useFocusEffect(useCallback(() => { loadAccounts(); }, []));
 
-  const calcTotal = () => { const q = parseFloat(form.qty)||0; const p = parseFloat(form.price)||0; setForm({...form, total: String(q * p)}); };
+  const cashAccounts = accounts.filter((a: any) => a.parentId === '111');
+  const customerAccounts = accounts.filter((a: any) => a.parentId === '114');
+  const inventoryAccounts = accounts.filter((a: any) => a.parentId === '115');
+
+  const addLine = () => setLines([...lines, { id: Date.now().toString(), itemId: '', itemName: '', qty: '0', price: '0', total: '0' }]);
+  const updateLine = (id: string, field: string, value: string) => { setLines(lines.map(l => { if (l.id !== id) return l; const u = { ...l, [field]: value }; if (['qty', 'price'].includes(field)) u.total = ((parseFloat(u.qty) || 0) * (parseFloat(u.price) || 0)).toString(); return u; })); };
+  
+  const subtotal = lines.reduce((s, l) => s + (parseFloat(l.total) || 0), 0);
+  const discountAmount = parseFloat(formData.discount) || 0;
+  const taxAmount = (subtotal - discountAmount) * 0.05;
+  const total = subtotal - discountAmount + taxAmount;
+  const paid = parseFloat(formData.paid) || 0;
+  const remaining = total - paid;
+  
+  const cashCount = invoices.filter((i: any) => i.type === 'cash').length + 1;
+  const creditCount = invoices.filter((i: any) => i.type === 'credit').length + 1;
+  const invoiceNumber = invoiceType === 'cash' ? `CSI-${cashCount.toString().padStart(6, '0')}` : `CRI-${creditCount.toString().padStart(6, '0')}`;
 
   const handleSave = async () => {
-    if (!form.customerName || !form.itemName) return Alert.alert('خطأ', 'أكمل البيانات');
-    const total = parseFloat(form.total) || 0;
-    await DataService.addSalesInvoice({ id: 'inv-' + Date.now(), number: 'INV-' + Date.now().toString().slice(-6), date: form.date, customerName: form.customerName, itemName: form.itemName, qty: form.qty, price: form.price, total });
-    setShowForm(false); loadAll();
+    if (invoiceType === 'credit' && !formData.customerName) { Alert.alert('خطأ', 'اختر العميل'); return; }
+    if (invoiceType === 'cash' && !formData.cashName) { Alert.alert('خطأ', 'اختر الصندوق'); return; }
+    if (lines.filter(l => l.itemName).length === 0) { Alert.alert('خطأ', 'أضف صنف'); return; }
+    
+    // ✅ ترحيل محاسبي تلقائي
+    const debitAccountId = invoiceType === 'cash' ? formData.cashId : formData.customerId;
+    const debitAccountName = invoiceType === 'cash' ? formData.cashName : formData.customerName;
+    
+    await injectJournalEntry(
+      'Sales',
+      formData.date,
+      `فاتورة مبيعات ${invoiceNumber} - ${debitAccountName}`,
+      debitAccountId,      // مدين: الصندوق أو العميل
+      '411',               // دائن: المبيعات
+      total
+    );
+    
+    // حفظ الفاتورة محلياً
+    const newInvoice = { id: 'inv-' + Date.now(), number: invoiceNumber, type: invoiceType, ...formData, subtotal, discount: discountAmount, tax: taxAmount, total, paid, remaining };
+    setInvoices([newInvoice, ...invoices]);
+    await loadAccounts(); // تحديث الأرصدة
+    
+    setShowModal(false);
+    Alert.alert('✅', `${invoiceNumber}\nتم الترحيل المحاسبي\n${total.toLocaleString()} ﷼`);
   };
 
   return (
-    <View style={[st.c, { paddingTop: insets.top }]}>
-      <ControlHeader title="فواتير المبيعات" count={invoices.length} onBack={() => router.back()} onAdd={() => { setForm({ date: new Date().toISOString().split('T')[0], customerId: '', customerName: '', itemId: '', itemName: '', qty: '1', price: '', total: '' }); setShowForm(true); }} />
-      <ControlButtons showAdd showSearch showPrint showRefresh onAdd={() => setShowForm(true)} onRefresh={loadAll} />
-      <TextInput style={st.si} placeholder="🔍 بحث..." placeholderTextColor="#666" value={searchQuery} onChangeText={setSearchQuery} />
-      {showForm && (
-        <Modal visible={showForm} animationType="slide" transparent>
-          <View style={st.mo}><View style={st.mc}><View style={st.mh}><Text style={st.mt}>فاتورة مبيعات</Text><TouchableOpacity onPress={()=>setShowForm(false)}><Text style={st.mx}>✕</Text></TouchableOpacity></View>
-          <ScrollView style={{padding:16}}>
-            <Text style={st.fl}>التاريخ</Text><TextInput style={st.fi} value={form.date} onChangeText={v=>setForm({...form,date:v})} />
-            <Text style={st.fl}>العميل *</Text>
-            <TouchableOpacity style={st.pk} onPress={()=>setShowCustPicker(true)}><Text style={form.customerName?st.pkt:st.pkp}>{form.customerName||'اختيار العميل'}</Text><Text style={st.pka}>▼</Text></TouchableOpacity>
-            <Text style={st.fl}>الصنف *</Text>
-            <TouchableOpacity style={st.pk} onPress={()=>setShowItemPicker(true)}><Text style={form.itemName?st.pkt:st.pkp}>{form.itemName||'اختيار الصنف'}</Text><Text style={st.pka}>▼</Text></TouchableOpacity>
-            <View style={{flexDirection:'row',gap:8}}>
-              <View style={{flex:1}}><Text style={st.fl}>الكمية</Text><TextInput style={st.fi} value={form.qty} onChangeText={v=>{setForm({...form,qty:v}); setTimeout(calcTotal,100);}} keyboardType="numeric" /></View>
-              <View style={{flex:1}}><Text style={st.fl}>السعر</Text><TextInput style={st.fi} value={form.price} onChangeText={v=>{setForm({...form,price:v}); setTimeout(calcTotal,100);}} keyboardType="numeric" /></View>
+    <View style={[st.c, { paddingTop: insets.top }]}><StatusBar barStyle="light-content" />
+      <ControlHeader title="فواتير المبيعات" count={invoices.length} onBack={() => router.back()} onAdd={() => { setFormData({ date: new Date().toISOString().split('T')[0], customerId: '', customerName: '', cashId: '', cashName: '', paid: '0', discount: '0', description: '' }); setLines([{ id: '1', itemId: '', itemName: '', qty: '0', price: '0', total: '0' }]); setShowModal(true); }} />
+      <ControlButtons showSearch showPrint showRefresh showExport onRefresh={loadAccounts} />
+      <TextInput style={st.si} placeholder="🔍 بحث..." placeholderTextColor="#94a3b8" value={searchQuery} onChangeText={setSearchQuery} />
+      
+      {invoices.length === 0 ? <Text style={st.et}>لا توجد فواتير</Text> :
+        <FlatList data={invoices} keyExtractor={(i: any) => i.id} renderItem={({ item }: any) => (
+          <View style={st.rc}><Text style={st.rn}>{item.number}</Text><Text style={st.rd}>{item.type==='cash'?'💰 نقدي':'📋 آجل'} | {item.customerName||item.cashName}</Text><Text style={st.rt}>{item.total?.toLocaleString()} ﷼</Text></View>
+        )} contentContainerStyle={{ padding: 16 }} />}
+
+      <Modal visible={showModal} animationType="slide" transparent>
+        <View style={st.mo}><View style={st.mc}><View style={st.mh}><Text style={st.mt}>فاتورة مبيعات</Text><TouchableOpacity onPress={() => setShowModal(false)}><Text style={st.mx}>✕</Text></TouchableOpacity></View>
+        <ScrollView style={st.mb}>
+          <Text style={st.fl}>النوع</Text>
+          <View style={st.tr}>
+            <TouchableOpacity style={[st.tb, invoiceType==='cash'&&st.tbA]} onPress={()=>setInvoiceType('cash')}><Text style={[st.tbt, invoiceType==='cash'&&st.tbtA]}>💰 نقدي</Text></TouchableOpacity>
+            <TouchableOpacity style={[st.tb, invoiceType==='credit'&&st.tbA]} onPress={()=>setInvoiceType('credit')}><Text style={[st.tbt, invoiceType==='credit'&&st.tbtA]}>📋 آجل</Text></TouchableOpacity>
+          </View>
+          <Text style={st.fl}>الرقم</Text><TextInput style={[st.fi,{color:'#D4AF37'}]} value={invoiceNumber} editable={false} />
+
+          {invoiceType==='cash' ? (
+            <><Text style={st.fl}>الصندوق *</Text><TouchableOpacity style={st.pk} onPress={()=>setShowCashPicker(true)}><Text style={formData.cashName?st.pkt:st.pkp}>{formData.cashName||'اختيار'}</Text><Text style={st.pka}>▼</Text></TouchableOpacity></>
+          ) : (
+            <><Text style={st.fl}>العميل *</Text><TouchableOpacity style={st.pk} onPress={()=>setShowCustomerPicker(true)}><Text style={formData.customerName?st.pkt:st.pkp}>{formData.customerName||'اختيار'}</Text><Text style={st.pka}>▼</Text></TouchableOpacity></>
+          )}
+
+          <Text style={st.fl}>التاريخ</Text><TextInput style={st.fi} value={formData.date} onChangeText={v=>setFormData({...formData,date:v})} />
+          <Text style={st.fl}>البيان</Text><TextInput style={[st.fi,{height:50}]} value={formData.description} onChangeText={v=>setFormData({...formData,description:v})} placeholder="بيان" placeholderTextColor="#666" multiline />
+
+          <Text style={st.st}>📦 الأصناف</Text>
+          {lines.map((line,i)=>(
+            <View key={line.id} style={st.lc}>
+              <TouchableOpacity style={st.pk} onPress={()=>{setCurrentLineId(line.id);setShowItemPicker(true);}}><Text style={line.itemName?st.pkt:st.pkp}>{line.itemName||'اختيار'}</Text><Text style={st.pka}>▼</Text></TouchableOpacity>
+              <View style={st.rw}><TextInput style={[st.fi,st.hf]} value={line.qty} onChangeText={v=>updateLine(line.id,'qty',v)} placeholder="كمية" keyboardType="numeric"/><TextInput style={[st.fi,st.hf]} value={line.price} onChangeText={v=>updateLine(line.id,'price',v)} placeholder="سعر" keyboardType="numeric"/></View>
             </View>
-            <Text style={st.fl}>الإجمالي</Text><TextInput style={[st.fi,{fontSize:18,color:'#10B981'}]} value={form.total} editable={false} />
-            <TouchableOpacity style={st.sb} onPress={handleSave}><Text style={st.sbt}>💾 حفظ</Text></TouchableOpacity>
-          </ScrollView></View></View>
-        </Modal>
-      )}
-      <FlatList data={invoices.filter((i:any) => i.number?.includes(searchQuery) || i.customerName?.includes(searchQuery))} keyExtractor={i => i.id} renderItem={({item}) => (
-        <View style={st.card}><Text style={st.cn}>{item.number}</Text><Text style={st.cd}>👤 {item.customerName} | 📦 {item.itemName}</Text><Text style={st.ca}>{item.total?.toLocaleString()} ﷼</Text></View>
-      )} ListEmptyComponent={<Text style={st.et}>لا توجد فواتير</Text>} contentContainerStyle={{padding:12}} />
-      <PickerModal visible={showCustPicker} title="اختيار العميل" data={customers} displayField="name" onSelect={(i:any)=>setForm({...form,customerId:i.id,customerName:i.name})} onClose={()=>setShowCustPicker(false)} />
-      <PickerModal visible={showItemPicker} title="اختيار الصنف" data={items} displayField="name" onSelect={(i:any)=>setForm({...form,itemId:i.id,itemName:i.name,price:String(i.price||'')})} onClose={()=>setShowItemPicker(false)} />
+          ))}
+          <TouchableOpacity style={st.al} onPress={addLine}><Text style={{color:'#D4AF37'}}>+ صنف</Text></TouchableOpacity>
+
+          <View style={st.ss}>
+            <View style={st.sr}><Text style={st.sl}>الإجمالي</Text><Text style={st.sv}>{subtotal.toLocaleString()}</Text></View>
+            <View style={st.sr}><Text style={st.sl}>الخصم</Text><TextInput style={[st.fi,{width:100}]} value={formData.discount} onChangeText={v=>setFormData({...formData,discount:v})} keyboardType="numeric"/></View>
+            <View style={st.sr}><Text style={st.sl}>الضريبة</Text><Text style={st.sv}>{taxAmount.toLocaleString()}</Text></View>
+            <View style={st.sr}><Text style={st.sl}>المدفوع</Text><TextInput style={[st.fi,{width:100}]} value={formData.paid} onChangeText={v=>setFormData({...formData,paid:v})} keyboardType="numeric"/></View>
+            <View style={st.gr}><Text style={st.gl}>الصافي</Text><Text style={st.gv}>{total.toLocaleString()}</Text></View>
+          </View>
+          <TouchableOpacity style={st.sb} onPress={handleSave}><Text style={st.sbt}>💾 حفظ مع الترحيل</Text></TouchableOpacity>
+        </ScrollView></View></View>
+      </Modal>
+
+      <PickerModal visible={showCashPicker} title="الصندوق" data={cashAccounts} displayField="name" subField="code" onSelect={(i:any)=>setFormData({...formData,cashId:i.id,cashName:i.name})} onClose={()=>setShowCashPicker(false)} />
+      <PickerModal visible={showCustomerPicker} title="العميل" data={customerAccounts} displayField="name" subField="code" onSelect={(i:any)=>setFormData({...formData,customerId:i.id,customerName:i.name})} onClose={()=>setShowCustomerPicker(false)} />
+      <PickerModal visible={showItemPicker} title="الصنف" data={inventoryAccounts} displayField="name" onSelect={(i:any)=>{updateLine(currentLineId,'itemId',i.id);updateLine(currentLineId,'itemName',i.name)}} onClose={()=>setShowItemPicker(false)} />
     </View>
   );
 }
 const st = StyleSheet.create({
-  c:{flex:1,backgroundColor:'#0A1128'},si:{marginHorizontal:12,marginBottom:8,padding:10,backgroundColor:'#16213E',borderRadius:10,color:'#FFF',borderWidth:1,borderColor:'#2a3550',textAlign:'right'},
-  mo:{flex:1,backgroundColor:'rgba(0,0,0,0.7)',justifyContent:'flex-end'},mc:{backgroundColor:'#16213E',borderTopLeftRadius:20,borderTopRightRadius:20,maxHeight:'90%'},
-  mh:{flexDirection:'row',justifyContent:'space-between',padding:16},mt:{color:'#D4AF37',fontSize:16,fontWeight:'bold'},mx:{color:'#EF4444',fontSize:22},
-  fl:{color:'#94a3b8',fontSize:13,marginBottom:6,marginTop:10},fi:{backgroundColor:'#0A1128',color:'#FFF',padding:10,borderRadius:8,textAlign:'right'},
-  pk:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',backgroundColor:'#0A1128',padding:12,borderRadius:8,borderWidth:1,borderColor:'#2a3550'},pkt:{color:'#FFF',fontSize:13},pkp:{color:'#666',fontSize:13},pka:{color:'#D4AF37',fontSize:11},
-  sb:{backgroundColor:'#D4AF37',padding:12,borderRadius:8,alignItems:'center',marginTop:16},sbt:{color:'#000',fontWeight:'bold'},
-  card:{backgroundColor:'#16213E',padding:14,marginHorizontal:12,marginVertical:4,borderRadius:12},cn:{color:'#D4AF37',fontSize:14,fontWeight:'bold'},cd:{color:'#FFF',fontSize:12},ca:{color:'#10B981',fontSize:14,fontWeight:'bold'},et:{color:'#666',textAlign:'center',marginTop:40},
+  c:{flex:1,backgroundColor:'#0A1128'},si:{marginHorizontal:16,marginBottom:8,padding:12,backgroundColor:'#16213E',borderRadius:10,color:'#FFF',borderWidth:1,borderColor:'#2a3550',textAlign:'right'},et:{color:'#FFF',fontSize:16,textAlign:'center',marginTop:40},
+  rc:{backgroundColor:'#16213E',borderRadius:14,padding:14,marginBottom:8,marginHorizontal:16,borderWidth:1,borderColor:'#2a3550'},rn:{color:'#D4AF37',fontSize:14,fontWeight:'bold'},rd:{color:'#FFF',fontSize:12},rt:{color:'#10B981',fontSize:13},
+  mo:{flex:1,backgroundColor:'rgba(0,0,0,0.7)',justifyContent:'flex-end'},mc:{backgroundColor:'#16213E',borderTopLeftRadius:20,borderTopRightRadius:20,maxHeight:'95%'},mh:{flexDirection:'row',justifyContent:'space-between',padding:16},mt:{color:'#D4AF37',fontSize:18,fontWeight:'bold'},mx:{color:'#EF4444',fontSize:22},mb:{padding:16},
+  fl:{color:'#94a3b8',fontSize:13,marginBottom:6,marginTop:12},fi:{backgroundColor:'#0A1128',borderRadius:10,padding:12,color:'#FFF',borderWidth:1,borderColor:'#2a3550',fontSize:14,textAlign:'right'},
+  tr:{flexDirection:'row',gap:8},tb:{flex:1,paddingVertical:12,borderRadius:10,backgroundColor:'#0A1128',borderWidth:1,borderColor:'#2a3550',alignItems:'center'},tbA:{borderColor:'#D4AF37',backgroundColor:'#D4AF3720'},tbt:{color:'#94a3b8',fontSize:13},tbtA:{color:'#D4AF37',fontWeight:'bold'},
+  pk:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',backgroundColor:'#0A1128',borderRadius:10,padding:14,borderWidth:1,borderColor:'#2a3550'},pkt:{color:'#FFF',fontSize:14},pkp:{color:'#666',fontSize:14},pka:{color:'#D4AF37',fontSize:12},
+  st:{fontSize:16,fontWeight:'bold',color:'#D4AF37',marginTop:16,marginBottom:10},lc:{backgroundColor:'#0A1128',borderRadius:10,padding:12,marginBottom:8,borderWidth:1,borderColor:'#2a3550'},rw:{flexDirection:'row',gap:8},hf:{flex:1},
+  al:{backgroundColor:'#D4AF3720',borderRadius:10,padding:12,alignItems:'center',marginTop:8},ss:{backgroundColor:'#0A1128',borderRadius:12,padding:14,marginTop:12},
+  sr:{flexDirection:'row',justifyContent:'space-between',paddingVertical:4},sl:{color:'#94a3b8',fontSize:13},sv:{color:'#FFF',fontSize:14,fontWeight:'bold'},
+  gr:{flexDirection:'row',justifyContent:'space-between',paddingVertical:10,borderTopWidth:1,borderTopColor:'#D4AF37',marginTop:4},gl:{color:'#D4AF37',fontSize:18,fontWeight:'bold'},gv:{color:'#D4AF37',fontSize:18,fontWeight:'bold'},
+  sb:{backgroundColor:'#D4AF37',borderRadius:12,padding:14,alignItems:'center',marginTop:20,marginBottom:20},sbt:{color:'#0A1128',fontSize:16,fontWeight:'bold'},
 });

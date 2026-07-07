@@ -6,7 +6,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, StatusBa
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // import { useLocalTable } from '../../hooks/useLocalStore';
-import { PickerModal } from '../../src/components/ui/PickerModal';
+import { Selector } from "../../src/components/common/Selector";
 
 export default function InventoryIssueScreen() {
   const router = useRouter(); const insets = useSafeAreaInsets();
@@ -64,9 +64,9 @@ export default function InventoryIssueScreen() {
             <TouchableOpacity style={st.sb} onPress={handleSave}><Text style={st.sbt}>💾 حفظ</Text></TouchableOpacity>
           </ScrollView></View></View>
       </Modal>
-      <PickerModal visible={showWarehousePicker} title="اختيار المخزن" data={warehouses || []} displayField="name" subField="code" onSelect={(i: any) => setFormData({ ...formData, warehouseId: i.id, warehouseName: i.name })} onClose={() => setShowWarehousePicker(false)} />
-      <PickerModal visible={showAccountPicker} title="اختيار الحساب" data={accounts || []} displayField="name" subField="code" onSelect={(i: any) => setFormData({ ...formData, accountId: i.id, accountName: i.name })} onClose={() => setShowAccountPicker(false)} />
-      <PickerModal visible={showItemPicker} title="اختيار الصنف" data={items || []} displayField="name" subField="code" onSelect={(i: any) => { updateLine(currentLineId, 'itemId', i.id); updateLine(currentLineId, 'itemName', i.name); updateLine(currentLineId, 'price', i.costPrice?.toString() || '0'); }} onClose={() => setShowItemPicker(false)} />
+      <Selector visible={showWarehousePicker} title="اختيار المخزن" data={warehouses || []} displayField="name" subField="code" onSelect={(i: any) => setFormData({ ...formData, warehouseId: i.id, warehouseName: i.name })} onClose={() => setShowWarehousePicker(false)} />
+      <Selector visible={showAccountPicker} title="اختيار الحساب" data={accounts || []} displayField="name" subField="code" onSelect={(i: any) => setFormData({ ...formData, accountId: i.id, accountName: i.name })} onClose={() => setShowAccountPicker(false)} />
+      <Selector visible={showItemPicker} title="اختيار الصنف" data={items || []} displayField="name" subField="code" onSelect={(i: any) => { updateLine(currentLineId, 'itemId', i.id); updateLine(currentLineId, 'itemName', i.name); updateLine(currentLineId, 'price', i.costPrice?.toString() || '0'); }} onClose={() => setShowItemPicker(false)} />
     </View>
   );
 }

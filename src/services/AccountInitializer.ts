@@ -1,4 +1,4 @@
-import LocalStore from '../../hooks/useLocalStore';
+import LocalStore from '@hooks/useLocalStore';
 
 const DEFAULT_MAIN_ACCOUNTS = [
   { code: '101', name: 'الصندوق', type: 'أصل', currency: 'YER', balance: 0, parentId: '' },
