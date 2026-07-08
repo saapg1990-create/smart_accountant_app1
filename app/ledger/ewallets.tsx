@@ -1,49 +1,65 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert, Modal } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, StatusBar, Alert, Modal, ScrollView } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { DataService } from '../../src/services/dataService';
+import { useAccountStore } from '../../src/store/useAccountStore';
+import { CurrencySelector } from '../../src/components/common/CurrencySelector';
 import { ControlButtons, ControlHeader } from '../../src/components/ui/ControlButtons';
 
 export default function EWalletsScreen() {
   const router = useRouter(); const insets = useSafeAreaInsets();
-  const [data, setData] = useState<any[]>([]);
-  const [showForm, setShowForm] = useState(false);
-  const [name, setName] = useState(''); const [phone, setPhone] = useState(''); const [bal, setBal] = useState('');
+  const { accounts, loadAccounts, addAccount, generateCode } = useAccountStore();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [currency, setCurrency] = useState('YER');
+  const [formData, setFormData] = useState({ name: '', phone: '', balance: '0' });
 
-  useFocusEffect(useCallback(() => { loadAll(); }, []));
-  const loadAll = async () => { const res = await DataService.getEwallets(); setData(res || []); };
-  const openAdd = () => { setName(''); setPhone(''); setBal(''); setShowForm(true); };
+  useFocusEffect(useCallback(() => { loadAccounts(); }, []));
+
+  const wallets = accounts.filter((a: any) => a.parentId === '113');
+  const totalBalance = wallets.reduce((s, b) => s + (b.balance || 0), 0);
+  const count = wallets.length + 1;
+  const walletNumber = `EW-${count.toString().padStart(4, '0')}`;
+
   const handleSave = async () => {
-    if (!name.trim()) return Alert.alert('خطأ', 'أدخل اسم المحفظة');
-    await DataService.addEwallet({ id: 'ewl-' + Date.now(), name, phone, balance: parseFloat(bal) || 0 });
-    setName(''); setPhone(''); setBal(''); setShowForm(false); loadAll();
+    if (!formData.name.trim()) { Alert.alert('خطأ', 'أدخل اسم المحفظة'); return; }
+    const code = generateCode('113');
+    await addAccount({ id: 'ew-' + Date.now(), name: formData.name, code, type: 'أصل', parentId: '113', balance: parseFloat(formData.balance) || 0, currency, walletPhone: formData.phone });
+    await loadAccounts();
+    setShowModal(false);
+    setFormData({ name: '', phone: '', balance: '0' });
+    Alert.alert('✅', `تم إضافة ${formData.name}`);
   };
 
   return (
-    <View style={[st.c, { paddingTop: insets.top }]}>
-      <ControlHeader title="المحافظ الإلكترونية" count={data.length} onBack={() => router.back()} onAdd={openAdd} />
-      <ControlButtons showAdd showSearch showRefresh onAdd={openAdd} onRefresh={loadAll} />
-      {showForm && (
-        <Modal visible={showForm} animationType="slide" transparent>
-          <View style={st.mo}><View style={st.mc}><View style={st.mh}><Text style={st.mt}>محفظة جديدة</Text><TouchableOpacity onPress={()=>setShowForm(false)}><Text style={st.mx}>✕</Text></TouchableOpacity></View>
-          <View style={{padding:16}}>
-            <TextInput style={st.fi} value={name} onChangeText={setName} placeholder="اسم المحفظة" placeholderTextColor="#666" />
-            <TextInput style={st.fi} value={phone} onChangeText={setPhone} placeholder="رقم الهاتف" placeholderTextColor="#666" />
-            <TextInput style={st.fi} value={bal} onChangeText={setBal} placeholder="الرصيد" placeholderTextColor="#666" keyboardType="numeric" />
-            <TouchableOpacity style={st.sb} onPress={handleSave}><Text style={st.sbt}>💾 حفظ</Text></TouchableOpacity>
-          </View></View></View>
-        </Modal>
-      )}
-      <FlatList data={data} keyExtractor={i => i.id} renderItem={({item}) => (
-        <View style={st.card}><Text style={st.cn}>📱 {item.name}</Text><Text style={st.cd}>📞 {item.phone} | 💰 {item.balance?.toLocaleString()}</Text></View>
-      )} ListEmptyComponent={<Text style={st.et}>لا توجد محافظ</Text>} contentContainerStyle={{padding:12}} />
+    <View style={[st.c, { paddingTop: insets.top }]}><StatusBar barStyle="light-content" />
+      <ControlHeader title="المحافظ الإلكترونية" count={wallets.length} onBack={() => router.back()} onAdd={() => { setFormData({ name: '', phone: '', balance: '0' }); setShowModal(true); }} />
+      <ControlButtons showSearch showPrint showRefresh showExport onRefresh={loadAccounts} />
+      <TextInput style={st.si} placeholder="🔍 بحث..." placeholderTextColor="#94a3b8" value={searchQuery} onChangeText={setSearchQuery} />
+      <View style={st.sm}><Text style={st.sl}>إجمالي الأرصدة</Text><Text style={st.sv}>{totalBalance.toLocaleString()} ﷼</Text></View>
+      {wallets.length === 0 ? <Text style={st.et}>لا توجد محافظ</Text> :
+        <FlatList data={wallets.filter((b: any) => b.name?.includes(searchQuery))} keyExtractor={(i: any) => i.id} renderItem={({ item }: any) => (
+          <View style={st.rc}><Text style={st.rn}>📱 {item.name}</Text><Text style={st.rd}>📞 {item.walletPhone || '-'} | الرصيد: {item.balance?.toLocaleString()} {item.currency}</Text></View>
+        )} contentContainerStyle={{ padding: 16 }} />}
+      <Modal visible={showModal} animationType="slide" transparent>
+        <View style={st.mo}><View style={st.mc}><View style={st.mh}><Text style={st.mt}>إضافة محفظة</Text><TouchableOpacity onPress={() => setShowModal(false)}><Text style={st.mx}>✕</Text></TouchableOpacity></View>
+        <ScrollView style={st.mb}>
+          <Text style={st.fl}>الرقم</Text><TextInput style={[st.fi,{color:'#D4AF37'}]} value={walletNumber} editable={false} />
+          <CurrencySelector selectedCurrency={currency} exchangeRate="1" onCurrencyChange={(c) => setCurrency(c)} />
+          <Text style={st.fl}>اسم المحفظة *</Text><TextInput style={st.fi} value={formData.name} onChangeText={v=>setFormData({...formData,name:v})} placeholder="اسم المحفظة" placeholderTextColor="#666" />
+          <Text style={st.fl}>رقم الهاتف المرتبط</Text><TextInput style={st.fi} value={formData.phone} onChangeText={v=>setFormData({...formData,phone:v})} placeholder="رقم الجوال" placeholderTextColor="#666" keyboardType="phone-pad" />
+          <Text style={st.fl}>الرصيد الافتتاحي</Text><TextInput style={st.fi} value={formData.balance} onChangeText={v=>setFormData({...formData,balance:v})} keyboardType="numeric" placeholder="0" placeholderTextColor="#666" />
+          <TouchableOpacity style={st.sb} onPress={handleSave}><Text style={st.sbt}>💾 حفظ</Text></TouchableOpacity>
+        </ScrollView></View></View>
+      </Modal>
     </View>
   );
 }
 const st = StyleSheet.create({
-  c:{flex:1,backgroundColor:'#0A1128'},mo:{flex:1,backgroundColor:'rgba(0,0,0,0.7)',justifyContent:'flex-end'},mc:{backgroundColor:'#16213E',borderTopLeftRadius:20,borderTopRightRadius:20,maxHeight:'70%'},
-  mh:{flexDirection:'row',justifyContent:'space-between',padding:16},mt:{color:'#D4AF37',fontSize:16,fontWeight:'bold'},mx:{color:'#EF4444',fontSize:22},
-  fi:{backgroundColor:'#0A1128',color:'#FFF',padding:10,borderRadius:8,marginBottom:8,textAlign:'right'},sb:{backgroundColor:'#D4AF37',padding:12,borderRadius:8,alignItems:'center',marginTop:12},sbt:{color:'#000',fontWeight:'bold'},
-  card:{backgroundColor:'#16213E',padding:14,marginHorizontal:12,marginVertical:4,borderRadius:12},cn:{color:'#FFF',fontSize:14,fontWeight:'bold'},cd:{color:'#94a3b8',fontSize:11},et:{color:'#666',textAlign:'center',marginTop:40},
+  c:{flex:1,backgroundColor:'#0A1128'},si:{marginHorizontal:16,marginBottom:8,padding:12,backgroundColor:'#16213E',borderRadius:10,color:'#FFF',borderWidth:1,borderColor:'#2a3550',textAlign:'right'},et:{color:'#FFF',fontSize:16,textAlign:'center',marginTop:40},
+  sm:{marginHorizontal:16,marginBottom:12,padding:16,backgroundColor:'#16213E',borderRadius:14,alignItems:'center',borderWidth:1,borderColor:'#2a3550'},sl:{color:'#94a3b8',fontSize:13},sv:{color:'#D4AF37',fontSize:24,fontWeight:'bold'},
+  rc:{backgroundColor:'#16213E',borderRadius:14,padding:14,marginBottom:8,marginHorizontal:16,borderWidth:1,borderColor:'#2a3550'},rn:{color:'#FFF',fontSize:16,fontWeight:'bold'},rd:{color:'#10B981',fontSize:13},
+  mo:{flex:1,backgroundColor:'rgba(0,0,0,0.7)',justifyContent:'flex-end'},mc:{backgroundColor:'#16213E',borderTopLeftRadius:20,borderTopRightRadius:20,maxHeight:'70%'},mh:{flexDirection:'row',justifyContent:'space-between',padding:16},mt:{color:'#D4AF37',fontSize:18,fontWeight:'bold'},mx:{color:'#EF4444',fontSize:22},mb:{padding:16},
+  fl:{color:'#94a3b8',fontSize:13,marginBottom:6,marginTop:12},fi:{backgroundColor:'#0A1128',borderRadius:10,padding:12,color:'#FFF',borderWidth:1,borderColor:'#2a3550',fontSize:14,textAlign:'right'},
+  sb:{backgroundColor:'#D4AF37',borderRadius:12,padding:14,alignItems:'center',marginTop:20,marginBottom:20},sbt:{color:'#0A1128',fontSize:16,fontWeight:'bold'},
 });
