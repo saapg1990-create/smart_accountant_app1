@@ -12,7 +12,7 @@ export default function SuppliersScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [currency, setCurrency] = useState('YER');
-  const [formData, setFormData] = useState({ name: '', phone: '', address: '', groupId: '', groupName: '', balance: '0', creditLimit: '0' });
+  const [formData, setFormData] = useState({ name: '', phone: '', address: '', groupId: '', groupName: '', balance: '0', creditLimit: '0', isDebit: true });
 
   useFocusEffect(useCallback(() => { loadAccounts(); }, []));
 
@@ -50,6 +50,11 @@ export default function SuppliersScreen() {
           <Text style={st.fl}>رقم الهاتف</Text><TextInput style={st.fi} value={formData.phone} onChangeText={v=>setFormData({...formData,phone:v})} keyboardType="phone-pad" />
           <Text style={st.fl}>العنوان</Text><TextInput style={st.fi} value={formData.address} onChangeText={v=>setFormData({...formData,address:v})} />
           <Text style={st.fl}>الرصيد الافتتاحي</Text><TextInput style={st.fi} value={formData.balance} onChangeText={v=>setFormData({...formData,balance:v})} keyboardType="numeric" />
+          <Text style={st.fl}>طبيعة الحساب</Text>
+          <View style={{flexDirection:"row",gap:8,marginBottom:8}}>
+            <TouchableOpacity style={[st.tb,{flex:1}, formData.isDebit!==false&&st.tba]} onPress={()=>setFormData({...formData,isDebit:true})}><Text style={[st.ttx, formData.isDebit!==false&&st.ttxa]}>مدين</Text></TouchableOpacity>
+            <TouchableOpacity style={[st.tb,{flex:1}, formData.isDebit===false&&st.tba]} onPress={()=>setFormData({...formData,isDebit:false})}><Text style={[st.ttx, formData.isDebit===false&&st.ttxa]}>دائن</Text></TouchableOpacity>
+          </View>
           <Text style={st.fl}>الحد الائتماني</Text><TextInput style={st.fi} value={formData.creditLimit} onChangeText={v=>setFormData({...formData,creditLimit:v})} keyboardType="numeric" />
           <TouchableOpacity style={st.sb} onPress={handleSave}><Text style={st.sbt}>💾 حفظ</Text></TouchableOpacity>
         </ScrollView></View></View>

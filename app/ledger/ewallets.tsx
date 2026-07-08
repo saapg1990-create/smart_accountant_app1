@@ -12,7 +12,7 @@ export default function EWalletsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [currency, setCurrency] = useState('YER');
-  const [formData, setFormData] = useState({ name: '', phone: '', balance: '0' });
+  const [formData, setFormData] = useState({ name: '', phone: '', balance: '0', isDebit: true });
 
   useFocusEffect(useCallback(() => { loadAccounts(); }, []));
 
@@ -48,6 +48,11 @@ export default function EWalletsScreen() {
           <CurrencySelector selectedCurrency={currency} exchangeRate="1" onCurrencyChange={(c) => setCurrency(c)} />
           <Text style={st.fl}>اسم المحفظة *</Text><TextInput style={st.fi} value={formData.name} onChangeText={v=>setFormData({...formData,name:v})} placeholder="اسم المحفظة" placeholderTextColor="#666" />
           <Text style={st.fl}>رقم الهاتف المرتبط</Text><TextInput style={st.fi} value={formData.phone} onChangeText={v=>setFormData({...formData,phone:v})} placeholder="رقم الجوال" placeholderTextColor="#666" keyboardType="phone-pad" />
+          <Text style={st.fl}>طبيعة الحساب</Text>
+          <View style={{flexDirection:"row",gap:8,marginBottom:8}}>
+            <TouchableOpacity style={[st.tb,{flex:1}, formData.isDebit!==false&&st.tba]} onPress={()=>setFormData({...formData,isDebit:true})}><Text style={[st.ttx, formData.isDebit!==false&&st.ttxa]}>مدين</Text></TouchableOpacity>
+            <TouchableOpacity style={[st.tb,{flex:1}, formData.isDebit===false&&st.tba]} onPress={()=>setFormData({...formData,isDebit:false})}><Text style={[st.ttx, formData.isDebit===false&&st.ttxa]}>دائن</Text></TouchableOpacity>
+          </View>
           <Text style={st.fl}>الرصيد الافتتاحي</Text><TextInput style={st.fi} value={formData.balance} onChangeText={v=>setFormData({...formData,balance:v})} keyboardType="numeric" placeholder="0" placeholderTextColor="#666" />
           <TouchableOpacity style={st.sb} onPress={handleSave}><Text style={st.sbt}>💾 حفظ</Text></TouchableOpacity>
         </ScrollView></View></View>

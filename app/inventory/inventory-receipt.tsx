@@ -12,6 +12,10 @@ export default function InventoryReceiptScreen() {
   const [issues, setIssues] = useState<any[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({ date: new Date().toISOString().split('T')[0], warehouseId: '', warehouseName: '', notes: '' });
+  const [debitAccountId, setDebitAccountId] = useState('115');
+  const [debitAccountName, setDebitAccountName] = useState('المخزون');
+  const [creditAccountId, setCreditAccountId] = useState('');
+  const [creditAccountName, setCreditAccountName] = useState('');
   const [lines, setLines] = useState([{ id: '1', itemId: '', itemName: '', qty: '0', price: '0', total: '0' }]);
 
   const addLine = () => setLines([...lines, { id: Date.now().toString(), itemId: '', itemName: '', qty: '0', price: '0', total: '0' }]);

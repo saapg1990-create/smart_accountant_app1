@@ -13,7 +13,7 @@ export default function CashBoxesScreen() {
   const [showModal, setShowModal] = useState(false);
   const [currency, setCurrency] = useState('YER');
   const [exchangeRate, setExchangeRate] = useState('1');
-  const [formData, setFormData] = useState({ name: '', balance: '0' });
+  const [formData, setFormData] = useState({ name: '', balance: '0', isDebit: true });
 
   useFocusEffect(useCallback(() => { loadAccounts(); }, []));
 
@@ -48,6 +48,11 @@ export default function CashBoxesScreen() {
           <Text style={st.fl}>الرقم</Text><TextInput style={[st.fi,{color:'#D4AF37'}]} value={boxNumber} editable={false} />
           <CurrencySelector selectedCurrency={currency} exchangeRate={exchangeRate} onCurrencyChange={(c) => setCurrency(c)} />
           <Text style={st.fl}>اسم الصندوق *</Text><TextInput style={st.fi} value={formData.name} onChangeText={v=>setFormData({...formData,name:v})} placeholder="اسم الصندوق" placeholderTextColor="#666" />
+          <Text style={st.fl}>طبيعة الحساب</Text>
+          <View style={{flexDirection:"row",gap:8,marginBottom:8}}>
+            <TouchableOpacity style={[st.tb,{flex:1}, formData.isDebit!==false&&st.tba]} onPress={()=>setFormData({...formData,isDebit:true})}><Text style={[st.ttx, formData.isDebit!==false&&st.ttxa]}>مدين</Text></TouchableOpacity>
+            <TouchableOpacity style={[st.tb,{flex:1}, formData.isDebit===false&&st.tba]} onPress={()=>setFormData({...formData,isDebit:false})}><Text style={[st.ttx, formData.isDebit===false&&st.ttxa]}>دائن</Text></TouchableOpacity>
+          </View>
           <Text style={st.fl}>الرصيد الافتتاحي</Text><TextInput style={st.fi} value={formData.balance} onChangeText={v=>setFormData({...formData,balance:v})} keyboardType="numeric" placeholder="0" placeholderTextColor="#666" />
           <TouchableOpacity style={st.sb} onPress={handleSave}><Text style={st.sbt}>💾 حفظ</Text></TouchableOpacity>
         </ScrollView></View></View>
