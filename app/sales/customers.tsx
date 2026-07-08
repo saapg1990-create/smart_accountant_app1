@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, StatusBar, Alert, Modal, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert, Modal, ScrollView } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAccountStore } from '../../src/store/useAccountStore';
@@ -12,50 +12,61 @@ export default function CustomersScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [currency, setCurrency] = useState('YER');
-  const [formData, setFormData] = useState({ name: '', phone: '', address: '', groupId: '', groupName: '', balance: '0', creditLimit: '0', isDebit: true });
+  const [formData, setFormData] = useState({ name: '', balance: '0' });
 
   useFocusEffect(useCallback(() => { loadAccounts(); }, []));
 
-  const customers = accounts.filter((a: any) => a.parentId === '114');
-  const totalBalance = customers.reduce((s, c) => s + (c.balance || 0), 0);
-  const count = customers.length + 1;
-  const customerNumber = `CST-${count.toString().padStart(4, '0')}`;
+  // ✅ جلب حسابات العميل من الدليل مباشرة
+  const cashBoxes = accounts.filter((a: any) => a.parentId === '114' && a.isActive !== 0);
+  const totalBalance = cashBoxes.reduce((s: number, b: any) => s + (b.balance || 0), 0);
+  const count = cashBoxes.length + 1;
+  const boxNumber = `CST-${count.toString().padStart(4, '0')}`;
 
   const handleSave = async () => {
     if (!formData.name.trim()) { Alert.alert('خطأ', 'أدخل اسم العميل'); return; }
     const code = generateCode('114');
-    await addAccount({ id: 'cust-' + Date.now(), name: formData.name, code, type: 'أصل', parentId: '114', balance: parseFloat(formData.balance) || 0, currency, walletPhone: formData.phone, notes: formData.address });
+    
+    // ✅ إضافة حساب في الدليل تحت "العميل" (114)
+    const result = await addAccount({
+      id: 'cash-' + Date.now(),
+      name: formData.name,
+      code,
+      type: 'أصل',
+      parentId: '114',
+      balance: parseFloat(formData.balance) || 0,
+      currency,
+      isDebit: 1
+    });
+    
+    if (!result.success) {
+      Alert.alert('تنبيه', result.error);
+      return;
+    }
+    
     await loadAccounts();
     setShowModal(false);
-    setFormData({ name: '', phone: '', address: '', groupId: '', groupName: '', balance: '0', creditLimit: '0' });
-    Alert.alert('✅', `تم إضافة ${formData.name}`);
+    setFormData({ name: '', balance: '0' });
+    Alert.alert('✅', `تم إضافة "${formData.name}" تحت العميل في الدليل`);
   };
 
   return (
-    <View style={[st.c, { paddingTop: insets.top }]}><StatusBar barStyle="light-content" />
-      <ControlHeader title="العملاء" count={customers.length} onBack={() => router.back()} onAdd={() => { setFormData({ name: '', phone: '', address: '', groupId: '', groupName: '', balance: '0', creditLimit: '0' }); setShowModal(true); }} />
-      <ControlButtons showSearch showPrint showRefresh showExport onRefresh={loadAccounts} />
+    <View style={[st.c, { paddingTop: insets.top }]}>
+      <ControlHeader title="العملاء" count={cashBoxes.length} onBack={() => router.back()} onAdd={() => { setFormData({ name: '', balance: '0' }); setShowModal(true); }} />
+      <ControlButtons showSearch showRefresh onRefresh={loadAccounts} />
       <TextInput style={st.si} placeholder="🔍 بحث..." placeholderTextColor="#94a3b8" value={searchQuery} onChangeText={setSearchQuery} />
-      <View style={st.sm}><Text style={st.sl}>إجمالي الذمم</Text><Text style={st.sv}>{totalBalance.toLocaleString()} ﷼</Text></View>
-      {customers.length === 0 ? <Text style={st.et}>لا يوجد عملاء</Text> :
-        <FlatList data={customers.filter((c: any) => c.name?.includes(searchQuery) || c.code?.includes(searchQuery))} keyExtractor={(i: any) => i.id} renderItem={({ item }: any) => (
-          <View style={st.rc}><Text style={st.rn}>👤 {item.name}</Text><Text style={st.rd}>📞 {item.walletPhone || '-'} | 📍 {item.notes || '-'} | الرصيد: {item.balance?.toLocaleString()} {item.currency}</Text></View>
+      <View style={st.sm}><Text style={st.sl}>إجمالي النقدية</Text><Text style={st.sv}>{totalBalance.toLocaleString()} ﷼</Text></View>
+      {cashBoxes.length === 0 ? <Text style={st.et}>لا توجد صناديق</Text> :
+        <FlatList data={cashBoxes.filter((b: any) => b.name?.includes(searchQuery))} keyExtractor={(i: any) => i.id} renderItem={({ item }: any) => (
+          <View style={st.rc}><Text style={st.rn}>👤 {item.name}</Text><Text style={st.rd}>الرصيد: {item.balance?.toLocaleString()} {item.currency} | الكود: {item.code}</Text></View>
         )} contentContainerStyle={{ padding: 16 }} />}
       <Modal visible={showModal} animationType="slide" transparent>
         <View style={st.mo}><View style={st.mc}><View style={st.mh}><Text style={st.mt}>إضافة عميل</Text><TouchableOpacity onPress={() => setShowModal(false)}><Text style={st.mx}>✕</Text></TouchableOpacity></View>
         <ScrollView style={st.mb}>
-          <Text style={st.fl}>الرقم</Text><TextInput style={[st.fi,{color:'#D4AF37'}]} value={customerNumber} editable={false} />
+          <Text style={st.fl}>الرقم</Text><TextInput style={[st.fi,{color:'#D4AF37'}]} value={boxNumber} editable={false} />
           <CurrencySelector selectedCurrency={currency} exchangeRate="1" onCurrencyChange={(c) => setCurrency(c)} />
-          <Text style={st.fl}>اسم العميل *</Text><TextInput style={st.fi} value={formData.name} onChangeText={v=>setFormData({...formData,name:v})} />
-          <Text style={st.fl}>رقم الهاتف</Text><TextInput style={st.fi} value={formData.phone} onChangeText={v=>setFormData({...formData,phone:v})} keyboardType="phone-pad" />
-          <Text style={st.fl}>العنوان</Text><TextInput style={st.fi} value={formData.address} onChangeText={v=>setFormData({...formData,address:v})} />
-          <Text style={st.fl}>الرصيد الافتتاحي</Text><TextInput style={st.fi} value={formData.balance} onChangeText={v=>setFormData({...formData,balance:v})} keyboardType="numeric" />
-          <Text style={st.fl}>طبيعة الحساب</Text>
-          <View style={{flexDirection:"row",gap:8,marginBottom:8}}>
-            <TouchableOpacity style={[st.tb,{flex:1}, formData.isDebit!==false&&st.tba]} onPress={()=>setFormData({...formData,isDebit:true})}><Text style={[st.ttx, formData.isDebit!==false&&st.ttxa]}>مدين</Text></TouchableOpacity>
-            <TouchableOpacity style={[st.tb,{flex:1}, formData.isDebit===false&&st.tba]} onPress={()=>setFormData({...formData,isDebit:false})}><Text style={[st.ttx, formData.isDebit===false&&st.ttxa]}>دائن</Text></TouchableOpacity>
-          </View>
-          <Text style={st.fl}>الحد الائتماني</Text><TextInput style={st.fi} value={formData.creditLimit} onChangeText={v=>setFormData({...formData,creditLimit:v})} keyboardType="numeric" />
+          <Text style={st.fl}>اسم العميل *</Text><TextInput style={st.fi} value={formData.name} onChangeText={v=>setFormData({...formData,name:v})} placeholder="اسم العميل" placeholderTextColor="#666" />
+          <Text style={st.fl}>الرصيد الافتتاحي</Text><TextInput style={st.fi} value={formData.balance} onChangeText={v=>setFormData({...formData,balance:v})} keyboardType="numeric" placeholder="0" placeholderTextColor="#666" />
+          <Text style={st.hint}>سيظهر تلقائياً في دليل الحسابات تحت "العميل"</Text>
           <TouchableOpacity style={st.sb} onPress={handleSave}><Text style={st.sbt}>💾 حفظ</Text></TouchableOpacity>
         </ScrollView></View></View>
       </Modal>
@@ -66,7 +77,7 @@ const st = StyleSheet.create({
   c:{flex:1,backgroundColor:'#0A1128'},si:{marginHorizontal:16,marginBottom:8,padding:12,backgroundColor:'#16213E',borderRadius:10,color:'#FFF',borderWidth:1,borderColor:'#2a3550',textAlign:'right'},et:{color:'#FFF',fontSize:16,textAlign:'center',marginTop:40},
   sm:{marginHorizontal:16,marginBottom:12,padding:16,backgroundColor:'#16213E',borderRadius:14,alignItems:'center',borderWidth:1,borderColor:'#2a3550'},sl:{color:'#94a3b8',fontSize:13},sv:{color:'#D4AF37',fontSize:24,fontWeight:'bold'},
   rc:{backgroundColor:'#16213E',borderRadius:14,padding:14,marginBottom:8,marginHorizontal:16,borderWidth:1,borderColor:'#2a3550'},rn:{color:'#FFF',fontSize:16,fontWeight:'bold'},rd:{color:'#10B981',fontSize:13},
-  mo:{flex:1,backgroundColor:'rgba(0,0,0,0.7)',justifyContent:'flex-end'},mc:{backgroundColor:'#16213E',borderTopLeftRadius:20,borderTopRightRadius:20,maxHeight:'80%'},mh:{flexDirection:'row',justifyContent:'space-between',padding:16},mt:{color:'#D4AF37',fontSize:18,fontWeight:'bold'},mx:{color:'#EF4444',fontSize:22},mb:{padding:16},
+  mo:{flex:1,backgroundColor:'rgba(0,0,0,0.7)',justifyContent:'flex-end'},mc:{backgroundColor:'#16213E',borderTopLeftRadius:20,borderTopRightRadius:20,maxHeight:'70%'},mh:{flexDirection:'row',justifyContent:'space-between',padding:16},mt:{color:'#D4AF37',fontSize:18,fontWeight:'bold'},mx:{color:'#EF4444',fontSize:22},mb:{padding:16},
   fl:{color:'#94a3b8',fontSize:13,marginBottom:6,marginTop:12},fi:{backgroundColor:'#0A1128',borderRadius:10,padding:12,color:'#FFF',borderWidth:1,borderColor:'#2a3550',fontSize:14,textAlign:'right'},
-  sb:{backgroundColor:'#D4AF37',borderRadius:12,padding:14,alignItems:'center',marginTop:20,marginBottom:20},sbt:{color:'#0A1128',fontSize:16,fontWeight:'bold'},
+  hint:{color:'#10B981',fontSize:11,textAlign:'center',marginTop:8},sb:{backgroundColor:'#D4AF37',borderRadius:12,padding:14,alignItems:'center',marginTop:20},sbt:{color:'#0A1128',fontSize:16,fontWeight:'bold'},
 });

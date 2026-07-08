@@ -1,15 +1,14 @@
 import { create } from 'zustand';
 
 let dbInstance: any = null;
-
 export const setDatabase = (db: any) => { dbInstance = db; };
-
 const getDB = () => dbInstance;
 
 interface Account {
   id: string; code: string; name: string; type: string;
-  currency: string; balance: number; parentId: string; createdAt: string;
-  isActive?: number;
+  currency: string; balance: number; parentId: string;
+  isDebit: number; isActive: number;
+  bankAccount?: string; walletPhone?: string; notes?: string;
 }
 
 interface AccountStore {
@@ -21,8 +20,6 @@ interface AccountStore {
   removeAccount: (id: string) => Promise<void>;
   getMainAccounts: () => Account[];
   getSubAccounts: (parentId: string) => Account[];
-  getLeafAccounts: () => Account[];
-  getAccountsByType: (type: string) => Account[];
   generateCode: (parentId?: string) => string;
   updateParentBalance: (parentId: string) => Promise<void>;
 }
@@ -34,82 +31,60 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
   loadAccounts: async () => {
     const db = getDB();
     if (!db) return;
-    try {
-      set({ loading: true });
-      const result = await db.getAllAsync('SELECT * FROM accounts WHERE isActive=1 ORDER BY code');
-      set({ accounts: result as Account[], loading: false });
-    } catch (e) {
-      console.log('Load error:', e);
-      set({ loading: false });
-    }
+    set({ loading: true });
+    const result = await db.getAllAsync('SELECT * FROM accounts WHERE isActive = 1 ORDER BY code');
+    set({ accounts: result as Account[], loading: false });
   },
 
   addAccount: async (account) => {
     const db = getDB();
     if (!db) return null;
-    try {
-      const parentId = account.parentId || '';
-      const id = account.id || ('acc-' + Date.now());
-      const code = account.code || get().generateCode(parentId || undefined);
-      
-      await db.runAsync(
-        'INSERT INTO accounts (id, code, name, type, parentId, currency, balance, isActive) VALUES (?,?,?,?,?,?,?,1)',
-        [id, code, account.name, account.type, parentId, account.currency || 'YER', account.balance || 0]
-      );
-      await get().loadAccounts();
-      return id;
-    } catch (e) { console.log('Add error:', e); return null; }
+    
+    // ✅ منع التكرار: نفس الاسم + نفس الأب
+    const { accounts } = get();
+    const parentId = account.parentId || '';
+    const exists = accounts.find((a: Account) => 
+      a.name === account.name && (a.parentId || '') === parentId
+    );
+    if (exists) {
+      console.log('❌ مكرر:', account.name);
+      return null;
+    }
+    
+    const id = account.id || ('acc-' + Date.now());
+    const code = account.code || get().generateCode(parentId);
+    
+    await db.runAsync(
+      'INSERT INTO accounts (id, code, name, type, parentId, currency, balance, isDebit, isActive, bankAccount, walletPhone, notes) VALUES (?,?,?,?,?,?,?,?,1,?,?,?)',
+      [id, code, account.name, account.type, parentId, account.currency||'YER', account.balance||0, account.isDebit!==false?1:0, account.bankAccount||'', account.walletPhone||'', account.notes||'']
+    );
+    
+    await get().loadAccounts();
+    if (parentId) await get().updateParentBalance(parentId);
+    return id;
   },
 
   updateAccount: async (id, updates) => {
     const db = getDB();
     if (!db) return;
-    try {
-      if (updates.name !== undefined) await db.runAsync('UPDATE accounts SET name=? WHERE id=?', [updates.name, id]);
-      if (updates.balance !== undefined) await db.runAsync('UPDATE accounts SET balance=? WHERE id=?', [updates.balance, id]);
-      if (updates.code !== undefined) await db.runAsync('UPDATE accounts SET code=? WHERE id=?', [updates.code, id]);
-      await get().loadAccounts();
-    } catch (e) { console.log('Update error:', e); }
+    if (updates.name !== undefined) await db.runAsync('UPDATE accounts SET name=? WHERE id=?', [updates.name, id]);
+    if (updates.balance !== undefined) await db.runAsync('UPDATE accounts SET balance=? WHERE id=?', [updates.balance, id]);
+    if (updates.currency !== undefined) await db.runAsync('UPDATE accounts SET currency=? WHERE id=?', [updates.currency, id]);
+    if (updates.isDebit !== undefined) await db.runAsync('UPDATE accounts SET isDebit=? WHERE id=?', [updates.isDebit, id]);
+    await get().loadAccounts();
   },
 
   removeAccount: async (id) => {
     const db = getDB();
     if (!db) return;
-    try {
-      await db.runAsync('UPDATE accounts SET isActive=0 WHERE id=?', [id]);
-      await get().loadAccounts();
-    } catch (e) { console.log('Remove error:', e); }
+    const subs = get().getSubAccounts(id);
+    if (subs.length > 0) return;
+    await db.runAsync('UPDATE accounts SET isActive=0 WHERE id=?', [id]);
+    await get().loadAccounts();
   },
 
-  // ✅ أهم تعديل: تصفية الحسابات الرئيسية
-  getMainAccounts: () => {
-    const { accounts } = get();
-    // الرئيسي: parentId فاضي أو null أو undefined أو ''
-    return accounts.filter((a: Account) => {
-      const pid = a.parentId;
-      return pid === null || pid === undefined || pid === '' || pid === 'null';
-    });
-  },
-
-  // ✅ أهم تعديل: جلب الأبناء
-  getSubAccounts: (parentId: string) => {
-    console.log("getSubAccounts called with:", parentId);
-    console.log("All accounts:", get().accounts.map((a: Account) => ({id: a.id, name: a.name, pid: a.parentId})));
-    const { accounts } = get();
-    if (!parentId) return [];
-    return accounts.filter((a: Account) => {
-      const pid = a.parentId;
-      return pid === parentId || pid === String(parentId);
-    });
-  },
-
-  getLeafAccounts: () => {
-    const { accounts } = get();
-    const parentIds = new Set(accounts.map((a: Account) => a.parentId).filter(Boolean));
-    return accounts.filter((a: Account) => a.parentId && !parentIds.has(a.id));
-  },
-
-  getAccountsByType: (type: string) => get().accounts.filter((a: Account) => a.type === type),
+  getMainAccounts: () => get().accounts.filter((a: Account) => !a.parentId || a.parentId === ''),
+  getSubAccounts: (parentId: string) => get().accounts.filter((a: Account) => a.parentId === parentId),
 
   generateCode: (parentId?: string) => {
     const { accounts } = get();
@@ -129,32 +104,9 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
   updateParentBalance: async (parentId: string) => {
     const db = getDB();
     if (!db) return;
-    try {
-      const subs = get().getSubAccounts(parentId);
-      const totalBalance = subs.reduce((sum: number, sub: Account) => sum + (sub.balance || 0), 0);
-      await db.runAsync('UPDATE accounts SET balance=? WHERE id=?', [totalBalance, parentId]);
-    } catch (e) { console.log('Update parent error:', e); }
+    const subs = get().getSubAccounts(parentId);
+    const totalBalance = subs.reduce((sum: number, sub: Account) => sum + (sub.balance || 0), 0);
+    await db.runAsync('UPDATE accounts SET balance=? WHERE id=?', [totalBalance, parentId]);
+    await get().loadAccounts();
   },
 }));
-
-// ✅ دالة جديدة: تجيب الحسابات المناسبة لكل حقل
-getAccountsForField: (fieldType: string) => {
-  const { accounts } = get();
-  const mapping: Record<string, string> = {
-    'cash': '111',      // الصندوق
-    'bank': '112',      // البنوك
-    'ewallet': '113',   // المحافظ الإلكترونية
-    'customer': '114',  // العملاء
-    'inventory': '115', // المخزون
-    'supplier': '211',  // الموردين
-    'tax': '212',       // الضرائب
-    'sales': '411',     // المبيعات
-    'purchases': '511', // المشتريات
-    'salary': '512',    // الرواتب
-    'rent': '513',      // الإيجارات
-    'expense': '514',   // مصاريف تشغيلية
-  };
-  const parentId = mapping[fieldType];
-  if (!parentId) return accounts.filter((a: Account) => a.parentId); // كل الفرعية
-  return accounts.filter((a: Account) => a.parentId === parentId);
-};
