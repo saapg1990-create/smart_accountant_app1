@@ -30,14 +30,13 @@ export default function SalesInvoiceScreen() {
   const taxAmount = (subtotal - discountAmount) * 0.05;
   const total = subtotal - discountAmount + taxAmount;
 
-  const handleSave = async () => {
   const cashCount = invoices.filter((i: any) => i.type === 'cash').length + 1;
   const creditCount = invoices.filter((i: any) => i.type === 'credit').length + 1;
   const invoiceNumber = invoiceType === 'cash' ? `CSI-${cashCount.toString().padStart(6, '0')}` : `CRI-${creditCount.toString().padStart(6, '0')}`;
+
+  const handleSave = async () => {
     if (invoiceType === 'credit' && !formData.customerName) { Alert.alert('خطأ', 'اختر العميل'); return; }
     if (invoiceType === 'cash' && !formData.cashName) { Alert.alert('خطأ', 'اختر الصندوق'); return; }
-    
-    const data = { date: formData.date, description: formData.description, total, customerName: formData.customerName || formData.cashName };
     
     const result = await unifiedPost('salesInvoice', { ...formData, invoiceType, total, currency, exchangeRate, cashId: formData.cashId, cashName: formData.cashName, customerId: formData.customerId, customerName: formData.customerName });
     
@@ -65,7 +64,9 @@ export default function SalesInvoiceScreen() {
       <Modal visible={showModal} animationType="slide" transparent>
         <View style={st.mo}><View style={st.mc}><View style={st.mh}><Text style={st.mt}>فاتورة مبيعات</Text><TouchableOpacity onPress={() => setShowModal(false)}><Text style={st.mx}>✕</Text></TouchableOpacity></View>
         <ScrollView style={st.mb}>
-          <Text style={st.fl}>رقم الفاتورة</Text><TextInput style={[st.fi,{color:"#D4AF37"}]} value={invoiceNumber} editable={false} />
+          <Text style={st.fl}>رقم الفاتورة</Text>
+          <TextInput style={[st.fi,{color:'#D4AF37'}]} value={invoiceNumber} editable={false} />
+
           <Text style={st.fl}>النوع</Text>
           <View style={st.tr}>
             <TouchableOpacity style={[st.tb, invoiceType==='cash'&&st.tbA]} onPress={()=>setInvoiceType('cash')}><Text style={[st.tbt, invoiceType==='cash'&&st.tbtA]}>💰 نقدي</Text></TouchableOpacity>
