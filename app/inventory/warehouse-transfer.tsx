@@ -1,65 +1,60 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert, Modal, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, StatusBar, Alert, Modal, ScrollView } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAccountStore } from '../../src/store/useAccountStore';
 import { Selector } from '../../src/components/common/Selector';
-import { ControlHeader } from '../../src/components/ui/ControlButtons';
+import { ItemRow } from '../../src/components/common/ItemRow';
+import { ControlButtons, ControlHeader } from '../../src/components/ui/ControlButtons';
 import { unifiedPost } from '../../src/services/unifiedPost';
 
 export default function WarehouseTransferScreen() {
   const router = useRouter(); const insets = useSafeAreaInsets();
-  const { accounts, loadAccounts } = useAccountStore();
-  const [issues, setIssues] = useState<any[]>([]);
+  const [transfers, setTransfers] = useState<any[]>([]);
   const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({ date: new Date().toISOString().split('T')[0], notes: '' });
+  const [formData, setFormData] = useState({ date: new Date().toISOString().split('T')[0], fromId: '', fromName: '', toId: '', toName: '', notes: '' });
   const [lines, setLines] = useState([{ id: '1', itemId: '', itemName: '', qty: '0', price: '0', total: '0' }]);
 
-  useFocusEffect(useCallback(() => { loadAccounts(); }, []));
-  
-  const inventoryAccounts = accounts.filter((a: any) => a.parentId === '115');
-
   const addLine = () => setLines([...lines, { id: Date.now().toString(), itemId: '', itemName: '', qty: '0', price: '0', total: '0' }]);
-  const updateLine = (id: string, field: string, value: string) => { setLines(lines.map(l => { if (l.id !== id) return l; const u = { ...l, [field]: value }; if (['qty', 'price'].includes(field)) u.total = ((parseFloat(u.qty) || 0) * (parseFloat(u.price) || 0)).toString(); return u; })); };
-  const total = lines.reduce((s, l) => s + (parseFloat(l.total) || 0), 0);
-  
-  const count = issues.length + 1;
-  const issueNumber = `TR-${count.toString().padStart(6, '0')}`;
+  const removeLine = (id: string) => { if (lines.length > 1) setLines(lines.filter(l => l.id !== id)); };
+  const updateLine = (id: string, field: string, value: string) => { setLines(lines.map(l => l.id === id ? { ...l, [field]: value } : l)); };
+
+  const count = transfers.length + 1;
+  const transferNumber = `TR-${count.toString().padStart(6, '0')}`;
 
   const handleSave = async () => {
-    const result = await unifiedPost('inventoryIssue', { ...formData, total });
+    if (!formData.fromName || !formData.toName) { Alert.alert('خطأ', 'اختر المخزنين'); return; }
+    if (formData.fromId === formData.toId) { Alert.alert('خطأ', 'لا يمكن التحويل لنفس المخزن'); return; }
+    const result = await unifiedPost('warehouseTransfer', { ...formData });
     if (result.success) {
-      setIssues([{ id: Date.now().toString(), number: issueNumber, ...formData, total }, ...issues]);
-      await loadAccounts();
+      setTransfers([{ id: Date.now().toString(), number: transferNumber, ...formData }, ...transfers]);
       setShowModal(false);
-      Alert.alert('✅', issueNumber);
-    } else {
-      Alert.alert('❌', result.error);
-    }
+      Alert.alert('✅', transferNumber);
+    } else { Alert.alert('❌', result.error); }
   };
 
   return (
-    <View style={[st.c, { paddingTop: insets.top }]}>
-      <ControlHeader title="تحويل مخزون" count={issues.length} onBack={() => router.back()} onAdd={() => { setFormData({ date: new Date().toISOString().split('T')[0], notes: '' }); setLines([{ id: '1', itemId: '', itemName: '', qty: '0', price: '0', total: '0' }]); setShowModal(true); }} />
-      {issues.length === 0 ? <Text style={st.et}>لا توجد عمليات تحويل</Text> :
-        <FlatList data={issues} keyExtractor={(i: any) => i.id} renderItem={({ item }: any) => (
-          <View style={st.rc}><Text style={st.rn}>{item.number}</Text><Text style={st.rd}>{item.total?.toLocaleString()} ﷼</Text></View>
+    <View style={[st.c, { paddingTop: insets.top }]}><StatusBar barStyle="light-content" />
+      <ControlHeader title="تحويل مخزون" count={transfers.length} onBack={() => router.back()} onAdd={() => { setFormData({ date: new Date().toISOString().split('T')[0], fromId: '', fromName: '', toId: '', toName: '', notes: '' }); setLines([{ id: '1', itemId: '', itemName: '', qty: '0', price: '0', total: '0' }]); setShowModal(true); }} />
+      {transfers.length === 0 ? <Text style={st.et}>لا توجد تحويلات</Text> :
+        <FlatList data={transfers} keyExtractor={(i: any) => i.id} renderItem={({ item }: any) => (
+          <View style={st.rc}><Text style={st.rn}>{item.number}</Text><Text style={st.rd}>{item.fromName} → {item.toName}</Text></View>
         )} contentContainerStyle={{ padding: 16 }} />}
       <Modal visible={showModal} animationType="slide" transparent>
         <View style={st.mo}><View style={st.mc}><View style={st.mh}><Text style={st.mt}>تحويل مخزون</Text><TouchableOpacity onPress={() => setShowModal(false)}><Text style={st.mx}>✕</Text></TouchableOpacity></View>
         <ScrollView style={st.mb}>
-          <Text style={st.fl}>الرقم</Text><TextInput style={[st.fi,{color:'#D4AF37'}]} value={issueNumber} editable={false} />
+          <Text style={st.fl}>الرقم</Text><TextInput style={[st.fi,{color:'#D4AF37'}]} value={transferNumber} editable={false} />
+          <Selector label="من مخزن *" tableName="warehouses" displayField="name" selectedId={formData.fromId} selectedName={formData.fromName} onSelect={(i:any)=>setFormData({...formData,fromId:i.id,fromName:i.name})} />
+          <Selector label="إلى مخزن *" tableName="warehouses" displayField="name" selectedId={formData.toId} selectedName={formData.toName} onSelect={(i:any)=>setFormData({...formData,toId:i.id,toName:i.name})} />
           <Text style={st.fl}>التاريخ</Text><TextInput style={st.fi} value={formData.date} onChangeText={v=>setFormData({...formData,date:v})} />
           <Text style={st.fl}>ملاحظات</Text><TextInput style={st.fi} value={formData.notes} onChangeText={v=>setFormData({...formData,notes:v})} />
           <Text style={st.st}>📦 الأصناف</Text>
-          {lines.map((line)=>(
-            <View key={line.id} style={st.lc}>
-              <Selector label="الصنف" tableName="items" displayField="name" selectedId={line.itemId} selectedName={line.itemName} onSelect={(i:any)=>{updateLine(line.id,'itemId',i.id);updateLine(line.id,'itemName',i.name)}} />
-              <View style={st.rw}><TextInput style={[st.fi,st.hf]} value={line.qty} onChangeText={v=>updateLine(line.id,'qty',v)} placeholder="كمية" keyboardType="numeric"/><TextInput style={[st.fi,st.hf]} value={line.price} onChangeText={v=>updateLine(line.id,'price',v)} placeholder="تكلفة" keyboardType="numeric"/></View>
+          {lines.map((line) => (
+            <View key={line.id}>
+              <Selector label="الصنف" tableName="items" displayField="name" selectedId={line.itemId} selectedName={line.itemName} onSelect={(item:any)=>{updateLine(line.id,'itemId',item.id);updateLine(line.id,'itemName',item.name)}} />
+              <ItemRow item={line} onUpdate={updateLine} onRemove={removeLine} showRemove={lines.length > 1} />
             </View>
           ))}
           <TouchableOpacity style={st.al} onPress={addLine}><Text style={{color:'#D4AF37'}}>+ صنف</Text></TouchableOpacity>
-          <Text style={st.gt}>الإجمالي: {total.toLocaleString()} ﷼</Text>
           <TouchableOpacity style={st.sb} onPress={handleSave}><Text style={st.sbt}>💾 حفظ</Text></TouchableOpacity>
         </ScrollView></View></View>
       </Modal>
@@ -68,9 +63,9 @@ export default function WarehouseTransferScreen() {
 }
 const st = StyleSheet.create({
   c:{flex:1,backgroundColor:'#0A1128'},et:{color:'#FFF',fontSize:16,textAlign:'center',marginTop:40},
-  rc:{backgroundColor:'#16213E',borderRadius:14,padding:14,marginBottom:10,marginHorizontal:16,borderWidth:1,borderColor:'#2a3550'},rn:{color:'#D4AF37',fontSize:14,fontWeight:'bold'},rd:{color:'#FFF',fontSize:13},
+  rc:{backgroundColor:'#16213E',borderRadius:14,padding:14,marginBottom:8,marginHorizontal:16,borderWidth:1,borderColor:'#2a3550'},rn:{color:'#D4AF37',fontSize:14,fontWeight:'bold'},rd:{color:'#FFF',fontSize:13},
   mo:{flex:1,backgroundColor:'rgba(0,0,0,0.7)',justifyContent:'flex-end'},mc:{backgroundColor:'#16213E',borderTopLeftRadius:20,borderTopRightRadius:20,maxHeight:'90%'},mh:{flexDirection:'row',justifyContent:'space-between',padding:16},mt:{color:'#D4AF37',fontSize:18,fontWeight:'bold'},mx:{color:'#EF4444',fontSize:22},mb:{padding:16},
   fl:{color:'#94a3b8',fontSize:13,marginBottom:6,marginTop:12},fi:{backgroundColor:'#0A1128',borderRadius:10,padding:12,color:'#FFF',borderWidth:1,borderColor:'#2a3550',fontSize:14,textAlign:'right'},
-  st:{fontSize:16,fontWeight:'bold',color:'#D4AF37',marginTop:16,marginBottom:10},lc:{backgroundColor:'#0A1128',borderRadius:10,padding:12,marginBottom:8,borderWidth:1,borderColor:'#2a3550'},rw:{flexDirection:'row',gap:8},hf:{flex:1},
-  al:{backgroundColor:'#D4AF3720',borderRadius:10,padding:12,alignItems:'center',marginTop:8},gt:{color:'#D4AF37',fontSize:16,fontWeight:'bold',textAlign:'center',marginTop:12},sb:{backgroundColor:'#D4AF37',borderRadius:12,padding:14,alignItems:'center',marginTop:20,marginBottom:20},sbt:{color:'#0A1128',fontSize:16,fontWeight:'bold'},
+  st:{fontSize:16,fontWeight:'bold',color:'#D4AF37',marginTop:16,marginBottom:10},al:{backgroundColor:'#D4AF3720',borderRadius:10,padding:12,alignItems:'center',marginTop:8},
+  sb:{backgroundColor:'#D4AF37',borderRadius:12,padding:14,alignItems:'center',marginTop:20,marginBottom:20},sbt:{color:'#0A1128',fontSize:16,fontWeight:'bold'},
 });
