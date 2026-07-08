@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAccountStore } from '../../src/store/useAccountStore';
 import { CurrencySelector } from '../../src/components/common/CurrencySelector';
 import { ControlButtons, ControlHeader } from '../../src/components/ui/ControlButtons';
+import { unifiedPost } from '../../src/services/unifiedPost';
 
 export default function SuppliersScreen() {
   const router = useRouter(); const insets = useSafeAreaInsets();
@@ -29,6 +30,9 @@ export default function SuppliersScreen() {
     setShowModal(false);
     setFormData({ name: '', phone: '', address: '', groupId: '', groupName: '', balance: '0', creditLimit: '0' });
     Alert.alert('✅', `تم إضافة ${formData.name}`);
+    if (parseFloat(formData.balance) > 0) {
+      await unifiedPost('supplier', { ...formData, date: new Date().toISOString().split('T')[0] });
+    }
   };
 
   return (

@@ -47,6 +47,8 @@ export default function InventoryReceiptScreen() {
         <View style={st.mo}><View style={st.mc}><View style={st.mh}><Text style={st.mt}>توريد مخزون</Text><TouchableOpacity onPress={() => setShowModal(false)}><Text style={st.mx}>✕</Text></TouchableOpacity></View>
         <ScrollView style={st.mb}>
           <Text style={st.fl}>الرقم</Text><TextInput style={[st.fi,{color:'#D4AF37'}]} value={issueNumber} editable={false} />
+          <Selector label="حساب مدين (المخزون)" tableName="accounts" filterField="parentId" filterValue="115" displayField="name" subField="code" showBalance selectedId={debitAccountId} selectedName={debitAccountName} onSelect={(i:any)=>{setDebitAccountId(i.id);setDebitAccountName(i.name)}} />
+          <Selector label="حساب دائن (المصروف)" tableName="accounts" displayField="name" subField="code" showBalance selectedId={creditAccountId} selectedName={creditAccountName} onSelect={(i:any)=>{setCreditAccountId(i.id);setCreditAccountName(i.name)}} />
           <Selector label="المخزن *" tableName="warehouses" displayField="name" selectedId={formData.warehouseId} selectedName={formData.warehouseName} onSelect={(i:any)=>setFormData({...formData,warehouseId:i.id,warehouseName:i.name})} />
           <Text style={st.fl}>التاريخ</Text><TextInput style={st.fi} value={formData.date} onChangeText={v=>setFormData({...formData,date:v})} />
           <Text style={st.fl}>ملاحظات</Text><TextInput style={st.fi} value={formData.notes} onChangeText={v=>setFormData({...formData,notes:v})} />

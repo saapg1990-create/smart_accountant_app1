@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAccountStore } from '../../src/store/useAccountStore';
 import { CurrencySelector } from '../../src/components/common/CurrencySelector';
 import { ControlButtons, ControlHeader } from '../../src/components/ui/ControlButtons';
+import { unifiedPost } from '../../src/services/unifiedPost';
 
 export default function BanksScreen() {
   const router = useRouter(); const insets = useSafeAreaInsets();
@@ -29,6 +30,9 @@ export default function BanksScreen() {
     setShowModal(false);
     setFormData({ name: '', accountNumber: '', balance: '0' });
     Alert.alert('✅', `تم إضافة ${formData.name}`);
+    if (parseFloat(formData.balance) > 0) {
+      await unifiedPost('bank', { ...formData, date: new Date().toISOString().split('T')[0] });
+    }
   };
 
   return (

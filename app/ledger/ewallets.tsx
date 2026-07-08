@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAccountStore } from '../../src/store/useAccountStore';
 import { CurrencySelector } from '../../src/components/common/CurrencySelector';
 import { ControlButtons, ControlHeader } from '../../src/components/ui/ControlButtons';
+import { unifiedPost } from '../../src/services/unifiedPost';
 
 export default function EWalletsScreen() {
   const router = useRouter(); const insets = useSafeAreaInsets();
@@ -29,6 +30,9 @@ export default function EWalletsScreen() {
     setShowModal(false);
     setFormData({ name: '', phone: '', balance: '0' });
     Alert.alert('✅', `تم إضافة ${formData.name}`);
+    if (parseFloat(formData.balance) > 0) {
+      await unifiedPost('ewallet', { ...formData, date: new Date().toISOString().split('T')[0] });
+    }
   };
 
   return (
