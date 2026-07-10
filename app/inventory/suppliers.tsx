@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert, M
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAccountStore } from '../../src/store/useAccountStore';
-import { CurrencySelector } from '../../src/components/common/CurrencySelector';
 import { ControlButtons, ControlHeader } from '../../src/components/ui/ControlButtons';
 
 export default function SuppliersScreen() {
@@ -11,61 +10,39 @@ export default function SuppliersScreen() {
   const { accounts, loadAccounts, addAccount, generateCode } = useAccountStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [currency, setCurrency] = useState('YER');
-  const [formData, setFormData] = useState({ name: '', balance: '0' });
+  const [formData, setFormData] = useState({ name: '', currency: 'YER', balance: '0' });
 
   useFocusEffect(useCallback(() => { loadAccounts(); }, []));
-
-  // ✅ جلب حسابات المورد من الدليل مباشرة
-  const cashBoxes = accounts.filter((a: any) => a.parentId === '211' && a.isActive !== 0);
-  const totalBalance = cashBoxes.reduce((s: number, b: any) => s + (b.balance || 0), 0);
+  const cashBoxes = accounts.filter((a: any) => a.parentId === '211');
+  const total = cashBoxes.reduce((s: number, b: any) => s + (b.balance || 0), 0);
   const count = cashBoxes.length + 1;
-  const boxNumber = `SUP-${count.toString().padStart(4, '0')}`;
 
   const handleSave = async () => {
     if (!formData.name.trim()) { Alert.alert('خطأ', 'أدخل اسم المورد'); return; }
     const code = generateCode('211');
-    
-    // ✅ إضافة حساب في الدليل تحت "المورد" (211)
-    const result = await addAccount({
-      id: 'cash-' + Date.now(),
-      name: formData.name,
-      code,
-      type: 'أصل',
-      parentId: '211',
-      balance: parseFloat(formData.balance) || 0,
-      currency,
-      isDebit: 1
-    });
-    
-    if (!result.success) {
-      Alert.alert('تنبيه', result.error);
-      return;
-    }
-    
+    await addAccount({ name: formData.name, code, type: 'خصم', parentId: '211', balance: parseFloat(formData.balance) || 0, currency: formData.currency, isDebit: 0 });
     await loadAccounts();
-    setShowModal(false);
-    setFormData({ name: '', balance: '0' });
-    Alert.alert('✅', `تم إضافة "${formData.name}" تحت المورد في الدليل`);
+    setShowModal(false); setFormData({ name: '', currency: 'YER', balance: '0' });
+    Alert.alert('✅', `تم إضافة ${formData.name} تحت المورد في الدليل`);
   };
 
   return (
     <View style={[st.c, { paddingTop: insets.top }]}>
-      <ControlHeader title="الموردين" count={cashBoxes.length} onBack={() => router.back()} onAdd={() => { setFormData({ name: '', balance: '0' }); setShowModal(true); }} />
+      <ControlHeader title="الموردين" count={cashBoxes.length} onBack={() => router.back()} onAdd={() => { setFormData({ name: '', currency: 'YER', balance: '0' }); setShowModal(true); }} />
       <ControlButtons showSearch showRefresh onRefresh={loadAccounts} />
       <TextInput style={st.si} placeholder="🔍 بحث..." placeholderTextColor="#94a3b8" value={searchQuery} onChangeText={setSearchQuery} />
-      <View style={st.sm}><Text style={st.sl}>إجمالي النقدية</Text><Text style={st.sv}>{totalBalance.toLocaleString()} ﷼</Text></View>
+      <View style={st.sm}><Text style={st.sl}>إجمالي النقدية</Text><Text style={st.sv}>{total.toLocaleString()} ﷼</Text></View>
       {cashBoxes.length === 0 ? <Text style={st.et}>لا توجد صناديق</Text> :
-        <FlatList data={cashBoxes.filter((b: any) => b.name?.includes(searchQuery))} keyExtractor={(i: any) => i.id} renderItem={({ item }: any) => (
-          <View style={st.rc}><Text style={st.rn}>🏭 {item.name}</Text><Text style={st.rd}>الرصيد: {item.balance?.toLocaleString()} {item.currency} | الكود: {item.code}</Text></View>
+        <FlatList data={cashBoxes.filter(b => b.name?.includes(searchQuery))} keyExtractor={i => i.id} renderItem={({ item }) => (
+          <View style={st.rc}><Text style={st.rn}>🏭 {item.name}</Text><Text style={st.rd}>الرصيد: {item.balance?.toLocaleString()} {item.currency}</Text></View>
         )} contentContainerStyle={{ padding: 16 }} />}
       <Modal visible={showModal} animationType="slide" transparent>
         <View style={st.mo}><View style={st.mc}><View style={st.mh}><Text style={st.mt}>إضافة مورد</Text><TouchableOpacity onPress={() => setShowModal(false)}><Text style={st.mx}>✕</Text></TouchableOpacity></View>
         <ScrollView style={st.mb}>
-          <Text style={st.fl}>الرقم</Text><TextInput style={[st.fi,{color:'#D4AF37'}]} value={boxNumber} editable={false} />
-          <CurrencySelector selectedCurrency={currency} exchangeRate="1" onCurrencyChange={(c) => setCurrency(c)} />
+          <Text style={st.fl}>الرقم</Text><TextInput style={[st.fi,{color:'#D4AF37'}]} value={`SUP-${count.toString().padStart(4,'0')}`} editable={false} />
           <Text style={st.fl}>اسم المورد *</Text><TextInput style={st.fi} value={formData.name} onChangeText={v=>setFormData({...formData,name:v})} placeholder="اسم المورد" placeholderTextColor="#666" />
-          <Text style={st.fl}>الرصيد الافتتاحي</Text><TextInput style={st.fi} value={formData.balance} onChangeText={v=>setFormData({...formData,balance:v})} keyboardType="numeric" placeholder="0" placeholderTextColor="#666" />
+          <Text style={st.fl}>العملة</Text><TextInput style={st.fi} value={formData.currency} onChangeText={v=>setFormData({...formData,currency:v})} />
+          <Text style={st.fl}>الرصيد الافتتاحي</Text><TextInput style={st.fi} value={formData.balance} onChangeText={v=>setFormData({...formData,balance:v})} keyboardType="numeric" />
           <Text style={st.hint}>سيظهر تلقائياً في دليل الحسابات تحت "المورد"</Text>
           <TouchableOpacity style={st.sb} onPress={handleSave}><Text style={st.sbt}>💾 حفظ</Text></TouchableOpacity>
         </ScrollView></View></View>
