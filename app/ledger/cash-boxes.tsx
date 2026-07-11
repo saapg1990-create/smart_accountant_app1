@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert, M
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAccountStore } from '../../src/store/useAccountStore';
+import { Selector } from '../../src/components/common/Selector';
 import { ControlButtons, ControlHeader } from '../../src/components/ui/ControlButtons';
 
 export default function CashBoxesScreen() {
@@ -10,25 +11,44 @@ export default function CashBoxesScreen() {
   const { accounts, loadAccounts, addAccount, generateCode } = useAccountStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({ name: '', currency: 'YER', balance: '0' });
+  const [formData, setFormData] = useState({
+    name: '', currency: 'YER', balance: '0', isDebit: true, showDebitCredit: false
+  });
 
   useFocusEffect(useCallback(() => { loadAccounts(); }, []));
+
   const cashBoxes = accounts.filter((a: any) => a.parentId === '111');
   const total = cashBoxes.reduce((s: number, b: any) => s + (b.balance || 0), 0);
   const count = cashBoxes.length + 1;
 
+  const resetForm = () => setFormData({ name: '', currency: 'YER', balance: '0', isDebit: true, showDebitCredit: false });
+
   const handleSave = async () => {
     if (!formData.name.trim()) { Alert.alert('خطأ', 'أدخل اسم الصندوق'); return; }
+    const balance = parseFloat(formData.balance) || 0;
+    
+    if (balance > 0) {
+      const nature = formData.isDebit ? 'مدين' : 'دائن';
+      Alert.alert('تأكيد', `الرصيد: ${balance.toLocaleString()} ${formData.currency}\nالطبيعة: ${nature}`, [
+        { text: 'تعديل' },
+        { text: 'حفظ', onPress: async () => {
+          const code = generateCode('111');
+          await addAccount({ name: formData.name, code, type: 'أصل', parentId: '111', balance: formData.isDebit ? balance : -balance, currency: formData.currency, isDebit: formData.isDebit ? 1 : 0 });
+          await loadAccounts(); resetForm(); setShowModal(false);
+          Alert.alert('✅', `تم إضافة ${formData.name} تحت الصندوق`);
+        }}
+      ]);
+      return;
+    }
+
     const code = generateCode('111');
-    await addAccount({ name: formData.name, code, type: 'أصل', parentId: '111', balance: parseFloat(formData.balance) || 0, currency: formData.currency, isDebit: 1 });
-    await loadAccounts();
-    setShowModal(false); setFormData({ name: '', currency: 'YER', balance: '0' });
-    Alert.alert('✅', `تم إضافة ${formData.name} تحت الصندوق في الدليل`);
+    await addAccount({ name: formData.name, code, type: 'أصل', parentId: '111', balance: 0, currency: formData.currency, isDebit: 1 });
+    await loadAccounts(); resetForm(); setShowModal(false);
   };
 
   return (
     <View style={[st.c, { paddingTop: insets.top }]}>
-      <ControlHeader title="الصناديق" count={cashBoxes.length} onBack={() => router.back()} onAdd={() => { setFormData({ name: '', currency: 'YER', balance: '0' }); setShowModal(true); }} />
+      <ControlHeader title="الصناديق" count={cashBoxes.length} onBack={() => router.back()} onAdd={() => { resetForm(); setShowModal(true); }} />
       <ControlButtons showSearch showRefresh onRefresh={loadAccounts} />
       <TextInput style={st.si} placeholder="🔍 بحث..." placeholderTextColor="#94a3b8" value={searchQuery} onChangeText={setSearchQuery} />
       <View style={st.sm}><Text style={st.sl}>إجمالي النقدية</Text><Text style={st.sv}>{total.toLocaleString()} ﷼</Text></View>
@@ -40,10 +60,25 @@ export default function CashBoxesScreen() {
         <View style={st.mo}><View style={st.mc}><View style={st.mh}><Text style={st.mt}>إضافة صندوق</Text><TouchableOpacity onPress={() => setShowModal(false)}><Text style={st.mx}>✕</Text></TouchableOpacity></View>
         <ScrollView style={st.mb}>
           <Text style={st.fl}>الرقم</Text><TextInput style={[st.fi,{color:'#D4AF37'}]} value={`BOX-${count.toString().padStart(4,'0')}`} editable={false} />
+          
           <Text style={st.fl}>اسم الصندوق *</Text><TextInput style={st.fi} value={formData.name} onChangeText={v=>setFormData({...formData,name:v})} placeholder="اسم الصندوق" placeholderTextColor="#666" />
-          <Text style={st.fl}>العملة</Text><TextInput style={st.fi} value={formData.currency} onChangeText={v=>setFormData({...formData,currency:v})} />
-          <Text style={st.fl}>الرصيد الافتتاحي</Text><TextInput style={st.fi} value={formData.balance} onChangeText={v=>setFormData({...formData,balance:v})} keyboardType="numeric" />
-          <Text style={st.hint}>سيظهر تلقائياً في دليل الحسابات تحت "الصندوق"</Text>
+          
+          <Text style={st.fl}>العملة</Text>
+          <Selector label="" tableName="currencies" displayField="code" subField="name" selectedId={formData.currency} selectedName={formData.currency} onSelect={(i:any)=>setFormData({...formData,currency:i.code})} />
+          
+          <Text style={st.fl}>الرصيد الافتتاحي</Text>
+          <TextInput style={st.fi} value={formData.balance} onChangeText={v => setFormData({...formData, balance: v, showDebitCredit: parseFloat(v) > 0})} keyboardType="numeric" placeholder="0" placeholderTextColor="#666" />
+          
+          {formData.showDebitCredit && (
+            <>
+              <Text style={[st.fl, {color:'#D4AF37'}]}>⚠️ طبيعة الرصيد</Text>
+              <View style={{flexDirection:'row',gap:8}}>
+                <TouchableOpacity style={[st.tb,{flex:1},formData.isDebit&&st.tba]} onPress={()=>setFormData({...formData,isDebit:true})}><Text style={[st.tt,formData.isDebit&&st.tta]}>مدين</Text></TouchableOpacity>
+                <TouchableOpacity style={[st.tb,{flex:1},!formData.isDebit&&st.tba]} onPress={()=>setFormData({...formData,isDebit:false})}><Text style={[st.tt,!formData.isDebit&&st.tta]}>دائن</Text></TouchableOpacity>
+              </View>
+            </>
+          )}
+
           <TouchableOpacity style={st.sb} onPress={handleSave}><Text style={st.sbt}>💾 حفظ</Text></TouchableOpacity>
         </ScrollView></View></View>
       </Modal>
@@ -56,5 +91,6 @@ const st = StyleSheet.create({
   rc:{backgroundColor:'#16213E',borderRadius:14,padding:14,marginBottom:8,marginHorizontal:16,borderWidth:1,borderColor:'#2a3550'},rn:{color:'#FFF',fontSize:16,fontWeight:'bold'},rd:{color:'#10B981',fontSize:13},
   mo:{flex:1,backgroundColor:'rgba(0,0,0,0.7)',justifyContent:'flex-end'},mc:{backgroundColor:'#16213E',borderTopLeftRadius:20,borderTopRightRadius:20,maxHeight:'70%'},mh:{flexDirection:'row',justifyContent:'space-between',padding:16},mt:{color:'#D4AF37',fontSize:18,fontWeight:'bold'},mx:{color:'#EF4444',fontSize:22},mb:{padding:16},
   fl:{color:'#94a3b8',fontSize:13,marginBottom:6,marginTop:12},fi:{backgroundColor:'#0A1128',borderRadius:10,padding:12,color:'#FFF',borderWidth:1,borderColor:'#2a3550',fontSize:14,textAlign:'right'},
-  hint:{color:'#10B981',fontSize:11,textAlign:'center',marginTop:8},sb:{backgroundColor:'#D4AF37',borderRadius:12,padding:14,alignItems:'center',marginTop:20},sbt:{color:'#0A1128',fontSize:16,fontWeight:'bold'},
+  tb:{paddingVertical:8,paddingHorizontal:14,borderRadius:8,backgroundColor:'#0A1128',borderWidth:1,borderColor:'#2a3550'},tba:{borderColor:'#D4AF37',backgroundColor:'#D4AF3720'},tt:{color:'#94a3b8',fontSize:12},tta:{color:'#D4AF37',fontWeight:'bold'},
+  sb:{backgroundColor:'#D4AF37',borderRadius:12,padding:14,alignItems:'center',marginTop:20},sbt:{color:'#0A1128',fontSize:16,fontWeight:'bold'},
 });
