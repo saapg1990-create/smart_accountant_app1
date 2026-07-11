@@ -36,6 +36,17 @@ export default function PurchaseInvoiceScreen() {
   const creditCount = invoices.filter((i: any) => i.type === 'credit').length + 1;
   const invoiceNumber = invoiceType === 'cash' ? `CPI-${cashCount.toString().padStart(6, '0')}` : `CRPI-${creditCount.toString().padStart(6, '0')}`;
 
+  // ✅ تفريغ الحقول عند تغيير نوع الفاتورة
+  const changeInvoiceType = (type: 'cash'|'credit') => {
+    setInvoiceType(type);
+    setFormData(prev => ({ ...prev, supplierId: '', supplierName: '', cashId: '', cashName: '' }));
+  };
+
+  const resetForm = () => {
+    setFormData({ date: new Date().toISOString().split('T')[0], supplierId: '', supplierName: '', cashId: '', cashName: '', warehouseId: '', warehouseName: '', paid: '0', discount: '0', description: '' });
+    setLines([{ id: '1', itemId: '', itemName: '', qty: '0', price: '0', discount: '0', taxRate: 5, total: '0' }]);
+  };
+
   const handleSave = async () => {
     if (invoiceType === 'credit' && !formData.supplierName) { Alert.alert('خطأ', 'اختر المورد'); return; }
     if (invoiceType === 'cash' && !formData.cashName) { Alert.alert('خطأ', 'اختر الصندوق'); return; }
@@ -46,14 +57,14 @@ export default function PurchaseInvoiceScreen() {
     if (result.success) {
       setInvoices([{ id: Date.now().toString(), number: result.number, type: invoiceType, total, ...formData }, ...invoices]);
       await loadAccounts();
-      setShowModal(false);
+      resetForm(); setShowModal(false);
       Alert.alert('✅', `${result.number}\n${result.amountYER?.toLocaleString()} ﷼`);
     } else { Alert.alert('❌', result.error); }
   };
 
   return (
     <View style={[st.c, { paddingTop: insets.top }]}><StatusBar barStyle="light-content" />
-      <ControlHeader title="فواتير المشتريات" count={invoices.length} onBack={() => router.back()} onAdd={() => { setFormData({ date: new Date().toISOString().split('T')[0], supplierId: '', supplierName: '', cashId: '', cashName: '', warehouseId: '', warehouseName: '', paid: '0', discount: '0', description: '' }); setLines([{ id: '1', itemId: '', itemName: '', qty: '0', price: '0', discount: '0', taxRate: 5, total: '0' }]); setShowModal(true); }} />
+      <ControlHeader title="فواتير المشتريات" count={invoices.length} onBack={() => router.back()} onAdd={() => { resetForm(); setShowModal(true); }} />
       <ControlButtons showSearch showPrint showRefresh showExport onRefresh={loadAccounts} />
       <TextInput style={st.si} placeholder="🔍 بحث..." placeholderTextColor="#94a3b8" value={searchQuery} onChangeText={setSearchQuery} />
       {invoices.length === 0 ? <Text style={st.et}>لا توجد فواتير</Text> :
@@ -64,20 +75,25 @@ export default function PurchaseInvoiceScreen() {
         <View style={st.mo}><View style={st.mc}><View style={st.mh}><Text style={st.mt}>فاتورة مشتريات</Text><TouchableOpacity onPress={() => setShowModal(false)}><Text style={st.mx}>✕</Text></TouchableOpacity></View>
         <ScrollView style={st.mb}>
           <Text style={st.fl}>رقم الفاتورة</Text><TextInput style={[st.fi,{color:'#D4AF37'}]} value={invoiceNumber} editable={false} />
-          <Text style={st.fl}>النوع</Text>
+          
+          <Text style={st.fl}>النوع (يتغير الحقول تلقائياً)</Text>
           <View style={st.tr}>
-            <TouchableOpacity style={[st.tb, invoiceType==='cash'&&st.tbA]} onPress={()=>setInvoiceType('cash')}><Text style={[st.tbt, invoiceType==='cash'&&st.tbtA]}>💰 نقدي</Text></TouchableOpacity>
-            <TouchableOpacity style={[st.tb, invoiceType==='credit'&&st.tbA]} onPress={()=>setInvoiceType('credit')}><Text style={[st.tbt, invoiceType==='credit'&&st.tbtA]}>📋 آجل</Text></TouchableOpacity>
+            <TouchableOpacity style={[st.tb, invoiceType==='cash'&&st.tbA]} onPress={()=>changeInvoiceType('cash')}><Text style={[st.tbt, invoiceType==='cash'&&st.tbtA]}>💰 نقدي</Text></TouchableOpacity>
+            <TouchableOpacity style={[st.tb, invoiceType==='credit'&&st.tbA]} onPress={()=>changeInvoiceType('credit')}><Text style={[st.tbt, invoiceType==='credit'&&st.tbtA]}>📋 آجل</Text></TouchableOpacity>
           </View>
+
           <CurrencySelector selectedCurrency={currency} exchangeRate={exchangeRate} onCurrencyChange={(c, r) => { setCurrency(c); setExchangeRate(r); }} />
+
           {invoiceType==='cash' ? (
             <Selector label="الصندوق *" tableName="accounts" filterField="parentId" filterValue="111" displayField="name" subField="code" showBalance selectedId={formData.cashId} selectedName={formData.cashName} onSelect={(i:any)=>setFormData({...formData,cashId:i.id,cashName:i.name})} />
           ) : (
             <Selector label="المورد *" tableName="accounts" filterField="parentId" filterValue="211" displayField="name" subField="code" showBalance selectedId={formData.supplierId} selectedName={formData.supplierName} onSelect={(i:any)=>setFormData({...formData,supplierId:i.id,supplierName:i.name})} />
           )}
+
           <Selector label="المخزن" tableName="warehouses" displayField="name" selectedId={formData.warehouseId} selectedName={formData.warehouseName} onSelect={(i:any)=>setFormData({...formData,warehouseId:i.id,warehouseName:i.name})} />
           <Text style={st.fl}>التاريخ</Text><TextInput style={st.fi} value={formData.date} onChangeText={v=>setFormData({...formData,date:v})} />
           <Text style={st.fl}>البيان</Text><TextInput style={[st.fi,{height:50}]} value={formData.description} onChangeText={v=>setFormData({...formData,description:v})} placeholder="بيان" placeholderTextColor="#666" multiline />
+
           <Text style={st.st}>📦 الأصناف</Text>
           {lines.map((line, i) => (
             <View key={line.id}>
@@ -86,6 +102,7 @@ export default function PurchaseInvoiceScreen() {
             </View>
           ))}
           <TouchableOpacity style={st.al} onPress={addLine}><Text style={{color:'#D4AF37'}}>+ إضافة صنف</Text></TouchableOpacity>
+
           <View style={st.ss}>
             <View style={st.sr}><Text style={st.sl}>الإجمالي</Text><Text style={st.sv}>{subtotal.toLocaleString()}</Text></View>
             <View style={st.sr}><Text style={st.sl}>الخصم</Text><TextInput style={[st.fi,{width:100}]} value={formData.discount} onChangeText={v=>setFormData({...formData,discount:v})} keyboardType="numeric"/></View>

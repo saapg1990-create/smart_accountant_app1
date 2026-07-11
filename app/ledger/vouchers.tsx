@@ -35,22 +35,34 @@ export default function VouchersScreen() {
   const count = activeTab === 'receipt' ? receiptCount : paymentCount;
   const voucherNumber = `${prefix}-${typeCode}-${count.toString().padStart(6, '0')}`;
 
+  // ✅ تفريغ الحقول عند تغيير النوع
+  const changeVoucherType = (type: 'cash'|'bank'|'ewallet') => {
+    setVoucherType(type);
+    setFormData({ date: new Date().toISOString().split('T')[0], sourceId: '', sourceName: '', accountId: '', accountName: '', description: '', amount: '', refNumber: '' });
+  };
+
+  const changeTab = (tab: 'receipt'|'payment') => {
+    setActiveTab(tab);
+    setFormData({ date: new Date().toISOString().split('T')[0], sourceId: '', sourceName: '', accountId: '', accountName: '', description: '', amount: '', refNumber: '' });
+  };
+
+  const resetForm = () => setFormData({ date: new Date().toISOString().split('T')[0], sourceId: '', sourceName: '', accountId: '', accountName: '', description: '', amount: '', refNumber: '' });
+
   const handleSave = async () => {
     if (!formData.sourceName || !formData.accountName || !formData.amount) { Alert.alert('خطأ', 'أكمل البيانات'); return; }
     const amount = parseFloat(formData.amount) || 0;
     setVouchers([{ id: 'vch-' + Date.now(), number: voucherNumber, type: activeTab, voucherType, ...formData, amount }, ...vouchers]);
-    setShowModal(false);
-    setFormData({ date: new Date().toISOString().split('T')[0], sourceId: '', sourceName: '', accountId: '', accountName: '', description: '', amount: '', refNumber: '' });
+    resetForm(); setShowModal(false);
     Alert.alert('✅', `تم حفظ السند ${voucherNumber}`);
   };
 
   return (
     <View style={[st.c, { paddingTop: insets.top }]}>
-      <ControlHeader title="سندات القبض والصرف" count={vouchers.length} onBack={() => router.back()} onAdd={() => { setFormData({ date: new Date().toISOString().split('T')[0], sourceId: '', sourceName: '', accountId: '', accountName: '', description: '', amount: '', refNumber: '' }); setShowModal(true); }} />
+      <ControlHeader title="سندات القبض والصرف" count={vouchers.length} onBack={() => router.back()} onAdd={() => { resetForm(); setShowModal(true); }} />
       
       <View style={st.tabs}>
-        <TouchableOpacity style={[st.tab, activeTab === 'receipt' && st.tabA]} onPress={() => setActiveTab('receipt')}><Text style={[st.tabT, activeTab === 'receipt' && st.tabTA]}>📥 قبض</Text></TouchableOpacity>
-        <TouchableOpacity style={[st.tab, activeTab === 'payment' && st.tabA]} onPress={() => setActiveTab('payment')}><Text style={[st.tabT, activeTab === 'payment' && st.tabTA]}>📤 صرف</Text></TouchableOpacity>
+        <TouchableOpacity style={[st.tab, activeTab === 'receipt' && st.tabA]} onPress={() => changeTab('receipt')}><Text style={[st.tabT, activeTab === 'receipt' && st.tabTA]}>📥 قبض</Text></TouchableOpacity>
+        <TouchableOpacity style={[st.tab, activeTab === 'payment' && st.tabA]} onPress={() => changeTab('payment')}><Text style={[st.tabT, activeTab === 'payment' && st.tabTA]}>📤 صرف</Text></TouchableOpacity>
       </View>
 
       <ControlButtons showSearch showPrint showRefresh showExport />
@@ -69,10 +81,10 @@ export default function VouchersScreen() {
       <Modal visible={showModal} animationType="slide" transparent>
         <View style={st.mo}><View style={st.mc}><View style={st.mh}><Text style={st.mt}>{activeTab === 'receipt' ? 'سند قبض' : 'سند صرف'}</Text><TouchableOpacity onPress={() => setShowModal(false)}><Text style={st.mx}>✕</Text></TouchableOpacity></View>
         <ScrollView style={st.mb}>
-          <Text style={st.fl}>نوع السند</Text>
+          <Text style={st.fl}>نوع السند (يتغير الحقول تلقائياً)</Text>
           <View style={st.tr}>
             {['cash', 'bank', 'ewallet'].map(t => (
-              <TouchableOpacity key={t} style={[st.tb, voucherType === t && st.tbA]} onPress={() => setVoucherType(t as any)}>
+              <TouchableOpacity key={t} style={[st.tb, voucherType === t && st.tbA]} onPress={() => changeVoucherType(t as any)}>
                 <Text style={[st.tbt, voucherType === t && st.tbtA]}>{t === 'cash' ? '💰 نقدي' : t === 'bank' ? '🏦 بنكي' : '📱 محفظة'}</Text>
               </TouchableOpacity>
             ))}
