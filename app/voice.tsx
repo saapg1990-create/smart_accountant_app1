@@ -1,4 +1,4 @@
-import { DataService } from 'src/services/dataService';
+import { DataService } from '../../src/services/dataService';
 import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator, Vibration } from 'react-native';
 import { useRouter } from 'expo-router';
