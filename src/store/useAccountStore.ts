@@ -4,27 +4,7 @@ let dbInstance: any = null;
 export const setDatabase = (db: any) => { dbInstance = db; };
 const getDB = () => dbInstance;
 
-interface Account {
-  id: string; code: string; name: string; type: string;
-  currency: string; balance: number; parentId: string;
-  isDebit: number; isActive: number;
-  bankAccount?: string; walletPhone?: string; notes?: string;
-}
-
-interface AccountStore {
-  accounts: Account[];
-  loading: boolean;
-  loadAccounts: () => Promise<void>;
-  addAccount: (account: Partial<Account>) => Promise<string | null>;
-  updateAccount: (id: string, updates: Partial<Account>) => Promise<void>;
-  removeAccount: (id: string) => Promise<void>;
-  getMainAccounts: () => Account[];
-  getSubAccounts: (parentId: string) => Account[];
-  generateCode: (parentId?: string) => string;
-  updateParentBalance: (parentId: string) => Promise<void>;
-}
-
-export const useAccountStore = create<AccountStore>((set, get) => ({
+export const useAccountStore = create<any>((set, get) => ({
   accounts: [],
   loading: false,
 
@@ -32,81 +12,102 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
     const db = getDB();
     if (!db) return;
     set({ loading: true });
-    const result = await db.getAllAsync('SELECT * FROM accounts WHERE isActive = 1 ORDER BY code');
-    set({ accounts: result as Account[], loading: false });
+    const result = await db.getAllAsync(`
+      SELECT a.*, 
+        COALESCE(SUM(ab.balance), 0) as balance,
+        COALESCE(SUM(ab.base_balance), 0) as base_balance,
+        (SELECT ab2.currency FROM account_balances ab2 WHERE ab2.account_id = a.id AND ab2.isDefault = 1 LIMIT 1) as currency
+      FROM accounts a
+      LEFT JOIN account_balances ab ON a.id = ab.account_id
+      WHERE a.isActive = 1
+      GROUP BY a.id
+      ORDER BY a.code
+    `);
+    set({ accounts: result, loading: false });
   },
 
-  addAccount: async (account) => {
+  getExchangeRate: async (currencyCode: string) => {
+    if (!currencyCode || currencyCode === 'YER') return 1;
     const db = getDB();
-    if (!db) return null;
+    if (!db) return 1;
+    try {
+      const result = await db.getFirstAsync('SELECT rate FROM currencies WHERE code=?', [currencyCode]) as any;
+      return result?.rate || 530; // افتراضي 530 للدولار
+    } catch (e) { return 530; }
+  },
+
+  addBalance: async (accountId: string, currency: string, balance: number) => {
+    const db = getDB();
+    if (!db || balance === 0) return;
     
-    // ✅ منع التكرار: نفس الاسم + نفس الأب
-    const { accounts } = get();
-    const parentId = account.parentId || '';
-    const exists = accounts.find((a: Account) => 
-      a.name === account.name && (a.parentId || '') === parentId
+    // ✅ جلب سعر الصرف الحقيقي
+    const rate = await get().getExchangeRate(currency);
+    console.log("💰 تحويل:", balance, currency, "×", rate, "=", balance * rate);
+    const baseBalance = balance * rate;
+    
+    const id = 'bal-' + Date.now();
+    await db.runAsync(
+      'INSERT INTO account_balances (id, account_id, currency, balance, base_balance, exchange_rate, isDefault) VALUES (?,?,?,?,?,?,1)',
+      [id, accountId, currency, balance, baseBalance, rate]
     );
-    if (exists) {
-      console.log('❌ مكرر:', account.name);
-      return null;
-    }
+    console.log(`✅ رصيد: ${balance} ${currency} × ${rate} = ${baseBalance} ﷼`);
+    await get().loadAccounts();
+  },
+
+  addAccount: async (account: any) => {
+    const db = getDB();
+    if (!db) return { success: false, error: 'قاعدة البيانات غير جاهزة' };
     
-    const id = account.id || ('acc-' + Date.now());
+    const { accounts } = get();
+    const name = account.name?.trim() || '';
+    const parentId = account.parentId || '';
+    
+    const exists = accounts.find((a: any) => a.name === name && (a.parentId || '') === parentId);
+    if (exists) return { success: false, error: `"${name}" موجود مسبقاً` };
+
+    const id = account.id || 'acc-' + Date.now();
     const code = account.code || get().generateCode(parentId);
     
     await db.runAsync(
-      'INSERT INTO accounts (id, code, name, type, parentId, currency, balance, isDebit, isActive, bankAccount, walletPhone, notes) VALUES (?,?,?,?,?,?,?,?,1,?,?,?)',
-      [id, code, account.name, account.type, parentId, account.currency||'YER', account.balance||0, account.isDebit!==false?1:0, account.bankAccount||'', account.walletPhone||'', account.notes||'']
+      'INSERT INTO accounts (id, code, name, type, parentId, isDebit, bankAccount, walletPhone, notes, isActive) VALUES (?,?,?,?,?,?,?,?,?,1)',
+      [id, code, name, account.type, parentId, account.isDebit ?? 1, account.bankAccount || '', account.walletPhone || '', account.notes || '']
     );
-    
+
+    // ✅ إضافة الرصيد بالعملة الصحيحة
+    const balance = parseFloat(account.balance) || 0;
+    if (balance !== 0) {
+      await get().addBalance(id, account.currency || 'YER', Math.abs(balance));
+    }
+
     await get().loadAccounts();
-    if (parentId) await get().updateParentBalance(parentId);
-    return id;
+    return { success: true, id };
   },
 
-  updateAccount: async (id, updates) => {
+  updateAccount: async (id: string, updates: any) => {
     const db = getDB();
     if (!db) return;
     if (updates.name !== undefined) await db.runAsync('UPDATE accounts SET name=? WHERE id=?', [updates.name, id]);
-    if (updates.balance !== undefined) await db.runAsync('UPDATE accounts SET balance=? WHERE id=?', [updates.balance, id]);
-    if (updates.currency !== undefined) await db.runAsync('UPDATE accounts SET currency=? WHERE id=?', [updates.currency, id]);
-    if (updates.isDebit !== undefined) await db.runAsync('UPDATE accounts SET isDebit=? WHERE id=?', [updates.isDebit, id]);
     await get().loadAccounts();
   },
 
-  removeAccount: async (id) => {
+  removeAccount: async (id: string) => {
     const db = getDB();
     if (!db) return;
-    const subs = get().getSubAccounts(id);
-    if (subs.length > 0) return;
     await db.runAsync('UPDATE accounts SET isActive=0 WHERE id=?', [id]);
+    await db.runAsync('DELETE FROM account_balances WHERE account_id=?', [id]);
     await get().loadAccounts();
   },
 
-  getMainAccounts: () => get().accounts.filter((a: Account) => !a.parentId || a.parentId === ''),
-  getSubAccounts: (parentId: string) => get().accounts.filter((a: Account) => a.parentId === parentId),
+  getMainAccounts: () => get().accounts.filter((a: any) => !a.parentId || a.parentId === ''),
+  getSubAccounts: (parentId: string) => get().accounts.filter((a: any) => a.parentId === parentId),
 
   generateCode: (parentId?: string) => {
     const { accounts } = get();
     if (parentId) {
-      const parent = accounts.find((a: Account) => a.id === parentId);
-      if (!parent) return '';
-      const siblings = accounts.filter((a: Account) => a.parentId === parentId);
-      const maxSeq = siblings.reduce((max: number, a: Account) => {
-        const suffix = a.code?.replace(parent.code || '', '');
-        return Math.max(max, parseInt(suffix) || 0);
-      }, 0);
-      return parent.code + (maxSeq + 1).toString().padStart(2, '0');
+      const siblings = accounts.filter((a: any) => a.parentId === parentId);
+      const parent = accounts.find((a: any) => a.id === parentId);
+      return (parent?.code || '') + (siblings.length + 1).toString().padStart(2, '0');
     }
-    return '1' + (accounts.length + 1).toString().padStart(2, '0');
-  },
-
-  updateParentBalance: async (parentId: string) => {
-    const db = getDB();
-    if (!db) return;
-    const subs = get().getSubAccounts(parentId);
-    const totalBalance = subs.reduce((sum: number, sub: Account) => sum + (sub.balance || 0), 0);
-    await db.runAsync('UPDATE accounts SET balance=? WHERE id=?', [totalBalance, parentId]);
-    await get().loadAccounts();
+    return (accounts.filter((a: any) => !a.parentId).length + 1).toString();
   },
 }));

@@ -21,10 +21,15 @@ export default function AccountsScreen() {
   const [editMode, setEditMode] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    name: '', code: '', type: 'أصل', balance: '0', parentId: '', parentName: '',
-    currency: 'YER', isDebit: true, bankAccount: '', walletPhone: '', notes: '',
-    showDebitCredit: false
+    name: '', code: '', type: 'أصل', parentId: '', parentName: '',
+    bankAccount: '', walletPhone: '', notes: ''
   });
+  
+  // ✅ أرصدة متعددة
+  const [balances, setBalances] = useState([
+    { currency: 'YER', balance: '0', isDebit: true }
+  ]);
+  
   const [refreshKey, setRefreshKey] = useState(0);
   const types = ['الكل', 'أصل', 'خصم', 'إيراد', 'مصروف', 'ملكية'];
 
@@ -34,27 +39,31 @@ export default function AccountsScreen() {
 
   const openAdd = (parentId='', parentName='', parentType='أصل') => {
     setEditMode(false); setEditingId(null);
-    setFormData({
-      name:'', code:'', type:parentType, balance:'0', parentId, parentName,
-      currency:'YER', isDebit:true, bankAccount:'', walletPhone:'', notes:'',
-      showDebitCredit: false
-    });
+    setFormData({ name:'', code:'', type:parentType, parentId, parentName, bankAccount:'', walletPhone:'', notes:'' });
+    setBalances([{ currency: 'YER', balance: '0', isDebit: true }]);
     setShowModal(true);
   };
 
   const openEdit = (acc: any) => {
     setEditMode(true); setEditingId(acc.id);
     const parent = accounts.find((a:any) => a.id === acc.parentId);
-    const hasBalance = Math.abs(acc.balance || 0) > 0;
     setFormData({
       name: acc.name, code: acc.code, type: acc.type,
-      balance: String(Math.abs(acc.balance || 0)),
       parentId: acc.parentId||'', parentName: parent?.name||'',
-      currency: acc.currency||'YER', isDebit: (acc.balance||0) >= 0,
-      bankAccount: acc.bankAccount||'', walletPhone: acc.walletPhone||'',
-      notes: acc.notes||'', showDebitCredit: hasBalance
+      bankAccount: acc.bankAccount||'', walletPhone: acc.walletPhone||'', notes: acc.notes||''
     });
+    setBalances([{ currency: acc.currency || 'YER', balance: String(Math.abs(acc.balance||0)), isDebit: (acc.balance||0) >= 0 }]);
     setShowModal(true);
+  };
+
+  const addBalanceRow = () => {
+    setBalances([...balances, { currency: 'YER', balance: '0', isDebit: true }]);
+  };
+
+  const updateBalance = (index: number, field: string, value: any) => {
+    const newBalances = [...balances];
+    newBalances[index] = { ...newBalances[index], [field]: value };
+    setBalances(newBalances);
   };
 
   const handleDelete = (acc: any) => {
@@ -66,34 +75,25 @@ export default function AccountsScreen() {
   const handleSave = async () => {
     if (!formData.name.trim()) { Alert.alert('خطأ', 'أدخل اسم الحساب'); return; }
     
-    const balance = parseFloat(formData.balance) || 0;
-    
-    // ✅ إذا فيه رصيد، نتأكد من تحديد مدين/دائن
-    if (balance > 0) {
-      const nature = formData.isDebit ? 'مدين' : 'دائن';
-      Alert.alert(
-        'تأكيد الطبيعة',
-        `الرصيد الافتتاحي: ${balance.toLocaleString()} ${formData.currency}\nالطبيعة: ${nature}\n\nهل تريد المتابعة؟`,
-        [
-          { text: 'تعديل', style: 'cancel' },
-          { text: 'حفظ', onPress: async () => await saveAccount(balance) }
-        ]
-      );
-      return;
-    }
-    
-    await saveAccount(balance);
-  };
-
-  const saveAccount = async (balance: number) => {
     const code = formData.code || generateCode(formData.parentId || undefined);
-    const finalBalance = formData.isDebit ? balance : -balance;
-
-    if (editMode && editingId) {
-      await updateAccount(editingId, { ...formData, code, balance: finalBalance });
-    } else {
-      await addAccount({ ...formData, code, balance: finalBalance });
+    
+    // ✅ إضافة الحساب
+    const result = await addAccount({
+      ...formData, code, isDebit: 1
+    });
+    
+    if (!result.success) { Alert.alert('تنبيه', result.error); return; }
+    
+    // ✅ إضافة الأرصدة
+    const { addBalance } = useAccountStore.getState();
+    for (const bal of balances) {
+      const balance = parseFloat(bal.balance) || 0;
+      if (balance !== 0) {
+        const finalBalance = bal.isDebit ? balance : -balance;
+        await addBalance(result.id!, bal.currency, Math.abs(finalBalance));
+      }
     }
+    
     setShowModal(false);
     setTimeout(() => { loadAccounts(); setRefreshKey(prev => prev + 1); }, 300);
   };
@@ -136,10 +136,15 @@ export default function AccountsScreen() {
                 <Text style={{fontSize:item.level===1?26:20}}>{ICONS[acc.name]||'📋'}</Text>
                 <View style={{flex:1,marginLeft:8}}>
                   <Text style={{color:'#FFF',fontSize:item.level===1?15:13,fontWeight:'bold',textAlign:'right'}}>{acc.name}</Text>
-                  <Text style={{color:'#94a3b8',fontSize:9,textAlign:'right'}}>كود: {acc.code} | 💱 {acc.currency}</Text>
+                  <Text style={{color:'#94a3b8',fontSize:9,textAlign:'right'}}>كود: {acc.code}</Text>
                 </View>
                 <View style={{alignItems:'flex-end',marginRight:4}}>
-                  <Text style={{color:(acc.balance||0)>=0?'#10B981':'#EF4444',fontSize:13,fontWeight:'bold'}}>{Math.abs(acc.balance||0).toLocaleString()} ﷼</Text>
+                  <Text style={{color:(acc.base_balance||0)>=0?'#10B981':'#EF4444',fontSize:13,fontWeight:'bold'}}>
+                    {Math.abs(acc.base_balance||0).toLocaleString()} ﷼
+                  </Text>
+                  {acc.currency && acc.currency !== 'YER' && (
+                    <Text style={{color:'#94a3b8',fontSize:9}}>{acc.balance?.toLocaleString()} {acc.currency}</Text>
+                  )}
                   <View style={{backgroundColor:natureColor+'20',paddingHorizontal:6,paddingVertical:2,borderRadius:6,marginTop:2}}>
                     <Text style={{color:natureColor,fontSize:9,fontWeight:'bold'}}>{nature}</Text>
                   </View>
@@ -168,34 +173,33 @@ export default function AccountsScreen() {
             <View style={{flexDirection:'row',flexWrap:'wrap',gap:6}}>{types.filter(t=>t!=='الكل').map(t=><TouchableOpacity key={t} style={[st.tb,formData.type===t&&st.tba]} onPress={()=>setFormData({...formData,type:t})}><Text style={[st.tt,formData.type===t&&st.tta]}>{t}</Text></TouchableOpacity>)}</View>
           </>)}
 
-          <Text style={st.fl}>العملة</Text>
-          <Selector label="" tableName="currencies" displayField="code" subField="name" selectedId={formData.currency} selectedName={formData.currency} onSelect={(i:any)=>setFormData({...formData,currency:i.code})} />
-
-          <Text style={st.fl}>الرصيد الافتتاحي</Text>
-          <TextInput style={st.fi} value={formData.balance} onChangeText={v => {
-            const show = parseFloat(v) > 0;
-            setFormData({...formData, balance: v, showDebitCredit: show});
-          }} keyboardType="numeric" placeholder="0" placeholderTextColor="#666" />
-
-          {/* ✅ يظهر مدين/دائن فقط إذا الرصيد > 0 */}
-          {formData.showDebitCredit && (
-            <>
-              <Text style={[st.fl, {color: '#D4AF37'}]}>⚠️ طبيعة الرصيد الافتتاحي</Text>
-              <View style={{flexDirection:'row',gap:8}}>
-                <TouchableOpacity style={[st.tb,{flex:1},formData.isDebit&&st.tba]} onPress={()=>setFormData({...formData,isDebit:true})}>
-                  <Text style={[st.tt,formData.isDebit&&st.tta]}>مدين</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[st.tb,{flex:1},!formData.isDebit&&st.tba]} onPress={()=>setFormData({...formData,isDebit:false})}>
-                  <Text style={[st.tt,!formData.isDebit&&st.tta]}>دائن</Text>
-                </TouchableOpacity>
+          {/* ✅ الأرصدة المتعددة */}
+          <Text style={[st.fl, {color: '#D4AF37', fontSize: 15, marginTop: 16}]}>💱 الأرصدة الافتتاحية</Text>
+          {balances.map((bal, index) => (
+            <View key={index} style={{backgroundColor: '#0A1128', borderRadius: 10, padding: 10, marginBottom: 8, borderWidth: 1, borderColor: '#2a3550'}}>
+              <View style={{flexDirection: 'row', gap: 8, alignItems: 'center'}}>
+                <View style={{flex: 1}}>
+                  <Text style={{color: '#94a3b8', fontSize: 10}}>العملة</Text>
+                  <TextInput style={[st.fi, {fontSize: 13}]} value={bal.currency} onChangeText={v => updateBalance(index, 'currency', v)} placeholder="YER" placeholderTextColor="#666" />
+                </View>
+                <View style={{flex: 1}}>
+                  <Text style={{color: '#94a3b8', fontSize: 10}}>الرصيد</Text>
+                  <TextInput style={[st.fi, {fontSize: 13}]} value={bal.balance} onChangeText={v => updateBalance(index, 'balance', v)} keyboardType="numeric" placeholder="0" placeholderTextColor="#666" />
+                </View>
+                <View style={{flexDirection: 'row', gap: 4, alignItems: 'center'}}>
+                  <TouchableOpacity style={[st.tb, bal.isDebit && st.tba]} onPress={() => updateBalance(index, 'isDebit', true)}>
+                    <Text style={[st.tt, bal.isDebit && st.tta, {fontSize: 10}]}>مدين</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[st.tb, !bal.isDebit && st.tba]} onPress={() => updateBalance(index, 'isDebit', false)}>
+                    <Text style={[st.tt, !bal.isDebit && st.tta, {fontSize: 10}]}>دائن</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-              <Text style={st.hint}>
-                {formData.isDebit 
-                  ? `سيتم إضافة ${parseFloat(formData.balance||'0').toLocaleString()} ${formData.currency} كمدين` 
-                  : `سيتم إضافة ${parseFloat(formData.balance||'0').toLocaleString()} ${formData.currency} كدائن`}
-              </Text>
-            </>
-          )}
+            </View>
+          ))}
+          <TouchableOpacity style={{backgroundColor: '#D4AF3720', padding: 10, borderRadius: 8, alignItems: 'center', marginTop: 4}} onPress={addBalanceRow}>
+            <Text style={{color: '#D4AF37'}}>+ إضافة رصيد بعملة أخرى</Text>
+          </TouchableOpacity>
 
           {(formData.name.includes('بنك') || formData.parentName?.includes('بنك')) && (
             <><Text style={st.fl}>🏦 رقم الحساب البنكي</Text><TextInput style={st.fi} value={formData.bankAccount} onChangeText={v=>setFormData({...formData,bankAccount:v})} placeholder="رقم الحساب" placeholderTextColor="#666" /></>
@@ -221,6 +225,5 @@ const st = StyleSheet.create({
   mo:{flex:1,backgroundColor:'rgba(0,0,0,0.7)',justifyContent:'flex-end'},mc:{backgroundColor:'#16213E',borderTopLeftRadius:20,borderTopRightRadius:20,maxHeight:'90%'},
   fl:{color:'#94a3b8',fontSize:13,marginBottom:6,marginTop:12},fi:{backgroundColor:'#0A1128',borderRadius:10,padding:12,color:'#FFF',borderWidth:1,borderColor:'#2a3550',fontSize:14,textAlign:'right'},
   tb:{paddingVertical:8,paddingHorizontal:14,borderRadius:8,backgroundColor:'#0A1128',borderWidth:1,borderColor:'#2a3550'},tba:{borderColor:'#D4AF37',backgroundColor:'#D4AF3720'},tt:{color:'#94a3b8',fontSize:12},tta:{color:'#D4AF37',fontWeight:'bold'},
-  hint:{color:'#D4AF37',fontSize:11,textAlign:'center',marginTop:6},
   sb:{backgroundColor:'#D4AF37',borderRadius:12,padding:14,alignItems:'center',marginTop:20,marginBottom:20},sbt:{color:'#0A1128',fontSize:16,fontWeight:'bold'},
 });
