@@ -12,49 +12,49 @@ export default function EWalletsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({
-    name: '', currency: 'YER', balance: '0', isDebit: true, showDebitCredit: false
+    name: '', phone: '', currency: 'YER', balance: '0', isDebit: true, showDebitCredit: false
   });
 
   useFocusEffect(useCallback(() => { loadAccounts(); }, []));
 
-  const cashBoxes = accounts.filter((a: any) => a.parentId === '113');
-  const total = cashBoxes.reduce((s: number, b: any) => s + (b.balance || 0), 0);
-  const count = cashBoxes.length + 1;
+  const wallets = accounts.filter((a: any) => a.parentId === '113');
+  const total = wallets.reduce((s: number, b: any) => s + (b.balance || 0), 0);
+  const count = wallets.length + 1;
 
-  const resetForm = () => setFormData({ name: '', currency: 'YER', balance: '0', isDebit: true, showDebitCredit: false });
+  const resetForm = () => setFormData({ name: '', phone: '', currency: 'YER', balance: '0', isDebit: true, showDebitCredit: false });
 
   const handleSave = async () => {
     if (!formData.name.trim()) { Alert.alert('خطأ', 'أدخل اسم المحفظة'); return; }
     const balance = parseFloat(formData.balance) || 0;
-    
+    const code = generateCode('113');
+    const finalBalance = formData.isDebit ? balance : -balance;
+
     if (balance > 0) {
       const nature = formData.isDebit ? 'مدين' : 'دائن';
       Alert.alert('تأكيد', `الرصيد: ${balance.toLocaleString()} ${formData.currency}\nالطبيعة: ${nature}`, [
         { text: 'تعديل' },
         { text: 'حفظ', onPress: async () => {
-          const code = generateCode('113');
-          await addAccount({ name: formData.name, code, type: 'أصل', parentId: '113', balance: formData.isDebit ? balance : -balance, currency: formData.currency, isDebit: formData.isDebit ? 1 : 0 });
+          await addAccount({ name: formData.name, code, type: 'أصل', parentId: '113', balance: finalBalance, currency: formData.currency, isDebit: formData.isDebit ? 1 : 0, walletPhone: formData.phone });
           await loadAccounts(); resetForm(); setShowModal(false);
-          Alert.alert('✅', `تم إضافة ${formData.name} تحت المحفظة`);
+          Alert.alert('✅', `تم إضافة ${formData.name} تحت المحافظ`);
         }}
       ]);
       return;
     }
 
-    const code = generateCode('113');
-    await addAccount({ name: formData.name, code, type: 'أصل', parentId: '113', balance: 0, currency: formData.currency, isDebit: 1 });
+    await addAccount({ name: formData.name, code, type: 'أصل', parentId: '113', balance: 0, currency: formData.currency, isDebit: 1, walletPhone: formData.phone });
     await loadAccounts(); resetForm(); setShowModal(false);
   };
 
   return (
     <View style={[st.c, { paddingTop: insets.top }]}>
-      <ControlHeader title="المحافظ" count={cashBoxes.length} onBack={() => router.back()} onAdd={() => { resetForm(); setShowModal(true); }} />
+      <ControlHeader title="المحافظ الإلكترونية" count={wallets.length} onBack={() => router.back()} onAdd={() => { resetForm(); setShowModal(true); }} />
       <ControlButtons showSearch showRefresh onRefresh={loadAccounts} />
       <TextInput style={st.si} placeholder="🔍 بحث..." placeholderTextColor="#94a3b8" value={searchQuery} onChangeText={setSearchQuery} />
-      <View style={st.sm}><Text style={st.sl}>إجمالي النقدية</Text><Text style={st.sv}>{total.toLocaleString()} ﷼</Text></View>
-      {cashBoxes.length === 0 ? <Text style={st.et}>لا توجد صناديق</Text> :
-        <FlatList data={cashBoxes.filter(b => b.name?.includes(searchQuery))} keyExtractor={i => i.id} renderItem={({ item }) => (
-          <View style={st.rc}><Text style={st.rn}>📱 {item.name}</Text><Text style={st.rd}>الرصيد: {item.balance?.toLocaleString()} {item.currency}</Text></View>
+      <View style={st.sm}><Text style={st.sl}>إجمالي الأرصدة</Text><Text style={st.sv}>{total.toLocaleString()} ﷼</Text></View>
+      {wallets.length === 0 ? <Text style={st.et}>لا توجد محافظ</Text> :
+        <FlatList data={wallets.filter(b => b.name?.includes(searchQuery))} keyExtractor={i => i.id} renderItem={({ item }) => (
+          <View style={st.rc}><Text style={st.rn}>📱 {item.name}</Text><Text style={st.rd}>📞 {item.walletPhone || '-'} | الرصيد: {item.balance?.toLocaleString()} {item.currency}</Text></View>
         )} contentContainerStyle={{ padding: 16 }} />}
       <Modal visible={showModal} animationType="slide" transparent>
         <View style={st.mo}><View style={st.mc}><View style={st.mh}><Text style={st.mt}>إضافة محفظة</Text><TouchableOpacity onPress={() => setShowModal(false)}><Text style={st.mx}>✕</Text></TouchableOpacity></View>
@@ -62,6 +62,8 @@ export default function EWalletsScreen() {
           <Text style={st.fl}>الرقم</Text><TextInput style={[st.fi,{color:'#D4AF37'}]} value={`EW-${count.toString().padStart(4,'0')}`} editable={false} />
           
           <Text style={st.fl}>اسم المحفظة *</Text><TextInput style={st.fi} value={formData.name} onChangeText={v=>setFormData({...formData,name:v})} placeholder="اسم المحفظة" placeholderTextColor="#666" />
+          
+          <Text style={st.fl}>📱 رقم الهاتف المرتبط</Text><TextInput style={st.fi} value={formData.phone} onChangeText={v=>setFormData({...formData,phone:v})} placeholder="رقم الجوال" placeholderTextColor="#666" keyboardType="phone-pad" />
           
           <Text style={st.fl}>العملة</Text>
           <Selector label="" tableName="currencies" displayField="code" subField="name" selectedId={formData.currency} selectedName={formData.currency} onSelect={(i:any)=>setFormData({...formData,currency:i.code})} />
