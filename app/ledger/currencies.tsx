@@ -1,151 +1,87 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert, Modal } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, StatusBar, Alert, Modal } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { DataService } from '../../src/services/dataService';
+import { useDatabase } from '../../src/context/DatabaseContext';
+import { useAccountStore } from '../../src/store/useAccountStore';
 import { ControlButtons, ControlHeader } from '../../src/components/ui/ControlButtons';
 
 export default function CurrenciesScreen() {
   const router = useRouter(); const insets = useSafeAreaInsets();
-  const [data, setData] = useState<any[]>([]);
-  const [showForm, setShowForm] = useState(false);
+  const { db } = useDatabase();
+  const { loadAccounts } = useAccountStore();
+  const [currencies, setCurrencies] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [form, setForm] = useState({ code: '', name: '', symbol: '', rate: '1', isDefault: false });
-  const [showRate, setShowRate] = useState(false);
+  const [formData, setFormData] = useState({ code: '', name: '', symbol: '', rate: '1', isDefault: false });
+  const [showRateModal, setShowRateModal] = useState(false);
+  const [rateId, setRateId] = useState('');
   const [newRate, setNewRate] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
 
-  useFocusEffect(useCallback(() => { loadAll(); }, []));
-  const loadAll = async () => { setData(await DataService.getCurrencies() || []); };
+  useFocusEffect(useCallback(() => { if (db) loadAll(); }, [db]));
 
-  const openAdd = () => { setEditMode(false); setEditingId(null); setForm({ code: '', name: '', symbol: '', rate: '1', isDefault: false }); setShowForm(true); };
+  const loadAll = async () => {
+    if (!db) return;
+    const result = await db.getAllAsync('SELECT * FROM currencies ORDER BY isDefault DESC, code');
+    setCurrencies(result);
+  };
 
-  const openEdit = () => {
-    const item = data.find((c: any) => c.id === selectedId);
-    if (!item) return Alert.alert('تنبيه', 'اختر عملة من القائمة أولاً');
-    setEditMode(true); setEditingId(item.id);
-    setForm({ code: item.code, name: item.name, symbol: item.symbol || '', rate: String(item.rate || 1), isDefault: item.isDefault === 1 });
-    setShowForm(true);
+  const filtered = currencies.filter((c: any) => c.code?.includes(searchQuery) || c.name?.includes(searchQuery));
+
+  const openAdd = () => { setEditMode(false); setEditingId(null); setFormData({ code: '', name: '', symbol: '', rate: '1', isDefault: false }); setShowModal(true); };
+  const openEdit = (item: any) => { setEditMode(true); setEditingId(item.id); setFormData({ code: item.code, name: item.name, symbol: item.symbol, rate: String(item.rate), isDefault: item.isDefault === 1 }); setShowModal(true); };
+  const openRateUpdate = (item: any) => { setRateId(item.id); setNewRate(String(item.rate)); setShowRateModal(true); };
+
+  const handleDelete = (id: string) => {
+    Alert.alert('حذف', 'حذف العملة؟', [{ text: 'إلغاء' }, { text: 'حذف', onPress: async () => { if (!db) return; await db.runAsync('DELETE FROM currencies WHERE id=?', [id]); await loadAll(); } }]);
   };
 
   const handleSave = async () => {
-    if (!form.code.trim() || !form.name.trim()) return Alert.alert('خطأ', 'أكمل الكود والاسم');
-    
-    const saveData = { 
-      code: form.code.toUpperCase(), 
-      name: form.name, 
-      symbol: form.symbol, 
-      rate: parseFloat(form.rate) || 1, 
-      isDefault: form.isDefault ? 1 : 0 
-    };
-    
-    if (editMode && editingId) {
-      await DataService.updateCurrency(editingId, saveData);
-      Alert.alert('✅', 'تم تحديث العملة بنجاح');
-    } else {
-      await DataService.addCurrency({ id: 'cur-' + Date.now(), ...saveData });
-      Alert.alert('✅', 'تمت إضافة العملة بنجاح');
-    }
-    setShowForm(false); setSelectedId(null); loadAll();
-  };
-
-  const handleDelete = async () => {
-    if (!selectedId) return Alert.alert('تنبيه', 'اختر عملة من القائمة أولاً');
-    Alert.alert('حذف', 'متأكد من حذف هذه العملة؟', [
-      { text: 'لا' },
-      { text: 'نعم', onPress: async () => { await DataService.deleteCurrency(selectedId); setSelectedId(null); loadAll(); Alert.alert('✅', 'تم الحذف'); } }
-    ]);
+    if (!db) return;
+    if (!formData.code || !formData.name) { Alert.alert('خطأ', 'أكمل البيانات'); return; }
+    const data = { code: formData.code.toUpperCase(), name: formData.name, symbol: formData.symbol, rate: parseFloat(formData.rate) || 1, isDefault: formData.isDefault ? 1 : 0 };
+    if (editMode && editingId) { await db.runAsync('UPDATE currencies SET code=?, name=?, symbol=?, rate=?, isDefault=? WHERE id=?', [data.code, data.name, data.symbol, data.rate, data.isDefault, editingId]); }
+    else { await db.runAsync('INSERT INTO currencies (id, code, name, symbol, rate, isDefault) VALUES (?,?,?,?,?,?)', ['cur-' + Date.now(), data.code, data.name, data.symbol, data.rate, data.isDefault]); }
+    if (data.isDefault === 1) { await db.runAsync('UPDATE currencies SET isDefault=0 WHERE id!=?', [editingId || '']); }
+    await loadAll(); setShowModal(false);
   };
 
   const updateRate = async () => {
-    if (!selectedId) return Alert.alert('تنبيه', 'اختر عملة من القائمة أولاً');
-    await DataService.updateCurrency(selectedId, { rate: parseFloat(newRate) || 1 });
-    setShowRate(false); loadAll();
-    Alert.alert('✅', 'تم تحديث سعر الصرف');
+    if (!db) return;
+    const rate = parseFloat(newRate) || 1;
+    const oldCurrency = currencies.find((c: any) => c.id === rateId);
+    const oldRate = oldCurrency?.rate || 1;
+    await db.runAsync('UPDATE currencies SET rate=? WHERE id=?', [rate, rateId]);
+    if (oldCurrency && oldRate !== rate && oldCurrency.code !== 'YER') {
+      const factor = rate / oldRate;
+      await db.runAsync('UPDATE accounts SET balance = round(balance * ?, 2) WHERE currency = ?', [factor, oldCurrency.code]);
+      await loadAccounts();
+      Alert.alert('✅', `تم تحديث السعر وتأثير الحسابات`);
+    }
+    await loadAll(); setShowRateModal(false);
   };
 
-  const filtered = data.filter((c: any) => c.name?.includes(searchQuery) || c.code?.includes(searchQuery));
-
   return (
-    <View style={[st.c, { paddingTop: insets.top }]}>
-      <ControlHeader title="العملات" count={data.length} onBack={() => router.back()} onAdd={openAdd} />
-      <ControlButtons showAdd showEdit showDelete showSearch showPrint showRefresh showExport onAdd={openAdd} onEdit={openEdit} onDelete={handleDelete} onRefresh={loadAll} />
-      <TextInput style={st.si} placeholder="🔍 بحث..." placeholderTextColor="#666" value={searchQuery} onChangeText={setSearchQuery} />
-
-      <TouchableOpacity style={st.rateBtn} onPress={() => {
-        const c = data.find((x: any) => x.id === selectedId);
-        if (c) { setNewRate(String(c.rate)); setShowRate(true); }
-        else Alert.alert('تنبيه', 'اختر عملة من القائمة أولاً');
-      }}>
-        <Text style={st.rateText}>💱 تحديث سعر الصرف للعملة المحددة</Text>
-      </TouchableOpacity>
-
-      {showForm && (
-        <Modal visible={showForm} animationType="slide" transparent>
-          <View style={st.mo}><View style={st.mc}>
-            <View style={st.mh}><Text style={st.mt}>{editMode ? '✏️ تعديل عملة' : '➕ عملة جديدة'}</Text><TouchableOpacity onPress={()=>setShowForm(false)}><Text style={st.mx}>✕</Text></TouchableOpacity></View>
-            <View style={{padding:16}}>
-              <Text style={st.fl}>الكود * (3 حروف)</Text>
-              <TextInput style={st.fi} value={form.code} onChangeText={v=>setForm({...form,code:v.toUpperCase()})} placeholder="USD" placeholderTextColor="#666" autoCapitalize="characters" maxLength={4} />
-              <Text style={st.fl}>الاسم *</Text>
-              <TextInput style={st.fi} value={form.name} onChangeText={v=>setForm({...form,name:v})} placeholder="دولار أمريكي" placeholderTextColor="#666" />
-              <Text style={st.fl}>الرمز</Text>
-              <TextInput style={st.fi} value={form.symbol} onChangeText={v=>setForm({...form,symbol:v})} placeholder="$" placeholderTextColor="#666" />
-              <Text style={st.fl}>سعر الصرف (مقابل الريال)</Text>
-              <TextInput style={st.fi} value={form.rate} onChangeText={v=>setForm({...form,rate:v})} keyboardType="numeric" placeholder="1" placeholderTextColor="#666" />
-              <TouchableOpacity style={[st.tb, form.isDefault&&st.tba]} onPress={()=>setForm({...form,isDefault:!form.isDefault})}>
-                <Text style={[st.tt, form.isDefault&&st.tta]}>{form.isDefault ? '⭐ العملة الافتراضية' : 'تعيين كافتراضية'}</Text>
-              </TouchableOpacity>
-              <View style={{flexDirection:'row',gap:8,marginTop:16}}>
-                <TouchableOpacity style={[st.btn,{flex:1,backgroundColor:'#D4AF37'}]} onPress={handleSave}>
-                  <Text style={[st.btnt,{color:'#000'}]}>💾 {editMode ? 'تحديث' : 'حفظ'}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[st.btn,{flex:1,backgroundColor:'#2a3550'}]} onPress={()=>setShowForm(false)}>
-                  <Text style={st.btnt}>إلغاء</Text>
-                </TouchableOpacity>
-              </View>
+    <View style={[st.c, { paddingTop: insets.top }]}><StatusBar barStyle="light-content" />
+      <ControlHeader title="العملات" count={currencies.length} onBack={() => router.back()} onAdd={openAdd} />
+      <ControlButtons showSearch showPrint showRefresh showExport onRefresh={loadAll} />
+      <TextInput style={st.si} placeholder="🔍 بحث..." placeholderTextColor="#94a3b8" value={searchQuery} onChangeText={setSearchQuery} />
+      <FlatList data={filtered} keyExtractor={(i: any) => i.id}
+        renderItem={({ item }: any) => (
+          <TouchableOpacity style={st.card} onPress={() => openEdit(item)} onLongPress={() => handleDelete(item.id)}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <View style={{ flex: 1 }}><Text style={st.code}>{item.code} {item.symbol} {item.isDefault === 1 ? '⭐' : ''}</Text><Text style={st.name}>{item.name}</Text></View>
+              <View style={{ alignItems: 'flex-end' }}><Text style={st.rate}>السعر: {item.rate?.toLocaleString()}</Text><TouchableOpacity style={st.rateBtn} onPress={() => openRateUpdate(item)}><Text style={st.rateBtnText}>💱 تحديث</Text></TouchableOpacity></View>
             </View>
-          </View></View>
-        </Modal>
-      )}
-
-      {showRate && (
-        <Modal visible={showRate} animationType="fade" transparent>
-          <View style={st.mo}><View style={[st.mc,{maxHeight:220}]}>
-            <View style={st.mh}><Text style={st.mt}>💱 تحديث سعر الصرف</Text><TouchableOpacity onPress={()=>setShowRate(false)}><Text style={st.mx}>✕</Text></TouchableOpacity></View>
-            <View style={{padding:16}}>
-              <TextInput style={[st.fi,{fontSize:20}]} value={newRate} onChangeText={setNewRate} keyboardType="numeric" placeholder="السعر الجديد" placeholderTextColor="#666" />
-              <TouchableOpacity style={st.sb} onPress={updateRate}><Text style={st.sbt}>💱 تحديث السعر</Text></TouchableOpacity>
-            </View>
-          </View></View>
-        </Modal>
-      )}
-
-      <FlatList data={filtered} keyExtractor={i => i.id} renderItem={({item}) => (
-        <TouchableOpacity style={[st.card, selectedId===item.id&&st.cardSel]} onPress={()=>setSelectedId(selectedId===item.id?null:item.id)}>
-          <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
-            <View>
-              <Text style={st.cn}>{item.code} {item.symbol || ''} {item.isDefault ? '⭐' : ''}</Text>
-              <Text style={st.cd}>{item.name}</Text>
-            </View>
-            <Text style={st.cr}>1 {item.code} = {item.rate?.toLocaleString()} ﷼</Text>
-          </View>
-        </TouchableOpacity>
-      )} ListEmptyComponent={<Text style={st.et}>لا توجد عملات</Text>} contentContainerStyle={{padding:12}} />
+          </TouchableOpacity>
+        )} ListEmptyComponent={<Text style={st.et}>لا توجد عملات</Text>} contentContainerStyle={{ padding: 16 }} />
     </View>
   );
 }
 const st = StyleSheet.create({
-  c:{flex:1,backgroundColor:'#0A1128'},si:{marginHorizontal:12,marginBottom:8,padding:10,backgroundColor:'#16213E',borderRadius:10,color:'#FFF',borderWidth:1,borderColor:'#2a3550',textAlign:'right'},
-  rateBtn:{marginHorizontal:12,marginBottom:8,padding:10,backgroundColor:'#D4AF3720',borderRadius:10,alignItems:'center',borderWidth:1,borderColor:'#D4AF37'},rateText:{color:'#D4AF37',fontSize:13,fontWeight:'bold'},
-  mo:{flex:1,backgroundColor:'rgba(0,0,0,0.7)',justifyContent:'flex-end'},mc:{backgroundColor:'#16213E',borderTopLeftRadius:20,borderTopRightRadius:20,maxHeight:'85%'},
-  mh:{flexDirection:'row',justifyContent:'space-between',padding:16},mt:{color:'#D4AF37',fontSize:18,fontWeight:'bold'},mx:{color:'#EF4444',fontSize:22},
-  fl:{color:'#94a3b8',fontSize:13,marginBottom:6,marginTop:10},fi:{backgroundColor:'#0A1128',color:'#FFF',padding:10,borderRadius:8,textAlign:'right'},
-  tb:{padding:12,borderRadius:8,backgroundColor:'#0A1128',alignItems:'center',marginTop:10,borderWidth:1,borderColor:'#2a3550'},tba:{borderColor:'#D4AF37',backgroundColor:'#D4AF3720'},tt:{color:'#94a3b8',fontSize:13},tta:{color:'#D4AF37',fontWeight:'bold'},
-  btn:{padding:14,borderRadius:10,alignItems:'center'},btnt:{color:'#FFF',fontWeight:'bold',fontSize:16},
-  sb:{backgroundColor:'#D4AF37',padding:12,borderRadius:8,alignItems:'center',marginTop:16},sbt:{color:'#000',fontWeight:'bold',fontSize:15},
-  card:{backgroundColor:'#16213E',padding:14,marginHorizontal:12,marginVertical:4,borderRadius:12},cardSel:{borderColor:'#D4AF37',borderWidth:1,backgroundColor:'#1a2540'},
-  cn:{color:'#D4AF37',fontSize:16,fontWeight:'bold'},cd:{color:'#FFF',fontSize:13,marginTop:2},cr:{color:'#10B981',fontSize:13,fontWeight:'bold'},et:{color:'#666',textAlign:'center',marginTop:40},
+  c: { flex: 1, backgroundColor: '#0A1128' }, si: { marginHorizontal: 16, marginBottom: 8, padding: 12, backgroundColor: '#16213E', borderRadius: 10, color: '#FFF', borderWidth: 1, borderColor: '#2a3550', textAlign: 'right' }, et: { color: '#FFF', fontSize: 16, textAlign: 'center', marginTop: 40 },
+  card: { backgroundColor: '#16213E', borderRadius: 14, padding: 16, marginBottom: 8, borderWidth: 1, borderColor: '#2a3550' }, code: { color: '#D4AF37', fontSize: 18, fontWeight: 'bold' }, name: { color: '#FFF', fontSize: 14, marginTop: 4 },
+  rate: { color: '#10B981', fontSize: 13, fontWeight: 'bold', marginTop: 4 }, rateBtn: { marginTop: 6, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: '#D4AF3720', borderRadius: 8, borderWidth: 1, borderColor: '#D4AF3740' }, rateBtnText: { color: '#D4AF37', fontSize: 11 },
 });

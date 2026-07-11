@@ -8,29 +8,23 @@ import { ControlButtons, ControlHeader } from '../../src/components/ui/ControlBu
 
 const ICONS: any = {
   'الأصول':'🏢','الخصوم':'💳','حقوق الملكية':'👑','الإيرادات':'💰','المصروفات':'💸',
-  'الأصول المتداولة':'💎','الأصول الثابتة':'🏗️','الخصوم المتداولة':'📋','الخصوم طويلة الأجل':'📑',
-  'رأس المال':'🏛️','المبيعات':'🛒','المشتريات':'📥',
-  'الصندوق':'💵','البنوك':'🏦','المحافظ الإلكترونية':'📱','العملاء':'👥','المخزون':'📦',
-  'مدينون آخرون':'📋','أوراق القبض':'📜','الأراضي':'🌍','المباني':'🏠','السيارات':'🚗',
-  'الأثاث والمعدات':'🪑','الإهلاك المتراكم':'📉',
-  'الموردين':'🏭','الضرائب المستحقة':'🧾','مصروفات مستحقة':'📝','دائنون آخرون':'📋','أوراق الدفع':'📜',
-  'قروض بنكية':'💳','المسحوبات الشخصية':'💸','الأرباح المحتجزة':'📊',
-  'مبيعات نقدية':'💵','مبيعات آجلة':'📋','مردودات المبيعات':'🔄','إيرادات استثمارية':'📈','أرباح فروق عملة':'💱',
-  'مشتريات بضائع':'📦','مردودات المشتريات':'🔄','رواتب وأجور':'👷','إيجارات':'🏠',
-  'كهرباء ومياه':'💡','اتصالات':'📞','إهلاك':'📉','مصاريف نقل وشحن':'🚚','مصاريف تسويق':'📢',
-  'الزكاة':'🕌','الضرائب':'🏛️',
+  'الصندوق':'💵','البنوك':'🏦','المحافظ':'📱','العملاء':'👥','المخزون':'📦','الموردين':'🏭'
 };
 
 export default function AccountsScreen() {
   const router = useRouter(); const insets = useSafeAreaInsets();
-  const { accounts, loading, loadAccounts, addAccount, updateAccount, removeAccount, getMainAccounts, getSubAccounts, generateCode } = useAccountStore();
+  const { accounts, loadAccounts, addAccount, updateAccount, removeAccount, getMainAccounts, getSubAccounts, generateCode } = useAccountStore();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState('الكل');
   const [showModal, setShowModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ name: '', code: '', type: 'أصل', balance: '0', parentId: '', parentName: '', currency: 'YER', isDebit: true, notes: '' });
+  const [formData, setFormData] = useState({
+    name: '', code: '', type: 'أصل', balance: '0', parentId: '', parentName: '',
+    currency: 'YER', isDebit: true, bankAccount: '', walletPhone: '', notes: '',
+    showDebitCredit: false
+  });
   const [refreshKey, setRefreshKey] = useState(0);
   const types = ['الكل', 'أصل', 'خصم', 'إيراد', 'مصروف', 'ملكية'];
 
@@ -40,17 +34,25 @@ export default function AccountsScreen() {
 
   const openAdd = (parentId='', parentName='', parentType='أصل') => {
     setEditMode(false); setEditingId(null);
-    setFormData({ name:'', code:'', type:parentType, balance:'0', parentId, parentName, currency:'YER', isDebit:true, notes:'' });
+    setFormData({
+      name:'', code:'', type:parentType, balance:'0', parentId, parentName,
+      currency:'YER', isDebit:true, bankAccount:'', walletPhone:'', notes:'',
+      showDebitCredit: false
+    });
     setShowModal(true);
   };
 
   const openEdit = (acc: any) => {
     setEditMode(true); setEditingId(acc.id);
     const parent = accounts.find((a:any) => a.id === acc.parentId);
+    const hasBalance = Math.abs(acc.balance || 0) > 0;
     setFormData({
-      name: acc.name, code: acc.code, type: acc.type, balance: String(Math.abs(acc.balance||0)),
-      parentId: acc.parentId||'', parentName: parent?.name||'', currency: acc.currency||'YER',
-      isDebit: (acc.isDebit !== undefined ? acc.isDebit : (acc.balance||0) >= 0), notes: acc.notes||''
+      name: acc.name, code: acc.code, type: acc.type,
+      balance: String(Math.abs(acc.balance || 0)),
+      parentId: acc.parentId||'', parentName: parent?.name||'',
+      currency: acc.currency||'YER', isDebit: (acc.balance||0) >= 0,
+      bankAccount: acc.bankAccount||'', walletPhone: acc.walletPhone||'',
+      notes: acc.notes||'', showDebitCredit: hasBalance
     });
     setShowModal(true);
   };
@@ -63,8 +65,28 @@ export default function AccountsScreen() {
 
   const handleSave = async () => {
     if (!formData.name.trim()) { Alert.alert('خطأ', 'أدخل اسم الحساب'); return; }
-    const code = formData.code || generateCode(formData.parentId || undefined);
+    
     const balance = parseFloat(formData.balance) || 0;
+    
+    // ✅ إذا فيه رصيد، نتأكد من تحديد مدين/دائن
+    if (balance > 0) {
+      const nature = formData.isDebit ? 'مدين' : 'دائن';
+      Alert.alert(
+        'تأكيد الطبيعة',
+        `الرصيد الافتتاحي: ${balance.toLocaleString()} ${formData.currency}\nالطبيعة: ${nature}\n\nهل تريد المتابعة؟`,
+        [
+          { text: 'تعديل', style: 'cancel' },
+          { text: 'حفظ', onPress: async () => await saveAccount(balance) }
+        ]
+      );
+      return;
+    }
+    
+    await saveAccount(balance);
+  };
+
+  const saveAccount = async (balance: number) => {
+    const code = formData.code || generateCode(formData.parentId || undefined);
     const finalBalance = formData.isDebit ? balance : -balance;
 
     if (editMode && editingId) {
@@ -102,43 +124,41 @@ export default function AccountsScreen() {
       <ScrollView horizontal style={{maxHeight:40,marginBottom:8}} contentContainerStyle={{flexDirection:'row',paddingHorizontal:12,gap:6}}>
         {types.map(t => <TouchableOpacity key={t} style={[st.fb, selectedType===t&&st.fba]} onPress={()=>setSelectedType(t)}><Text style={[st.ft, selectedType===t&&st.fta]}>{t}</Text></TouchableOpacity>)}
       </ScrollView>
-      {loading ? <Text style={{color:'#D4AF37',textAlign:'center',marginTop:40}}>⏳ جاري التحميل...</Text> :
-        <FlatList key={refreshKey} data={displayList} keyExtractor={(i,idx)=>i.data.id+idx}
-          renderItem={({item}) => {
-            const acc = item.data; const ml = (item.level-1)*22;
-            const nature = acc.isDebit !== 0 ? 'مدين' : 'دائن';
-            const natureColor = nature === 'مدين' ? '#10B981' : '#EF4444';
-            return (
-              <TouchableOpacity style={[item.level===1?st.l1:item.level===2?st.l2:st.l3, {marginLeft:ml, borderRightColor:item.color, borderRightWidth:item.level===1?5:item.level===2?3:2}]}
-                onPress={()=>openEdit(acc)} onLongPress={()=>handleDelete(acc)}>
-                <View style={{flexDirection:'row',alignItems:'center'}}>
-                  <Text style={{fontSize:item.level===1?26:item.level===2?20:16}}>{ICONS[acc.name]||'📋'}</Text>
-                  <View style={{flex:1,marginLeft:8}}>
-                    <Text style={{color:'#FFF',fontSize:item.level===1?15:item.level===2?13:12,fontWeight:'bold',textAlign:'right'}}>{acc.name}</Text>
-                    <Text style={{color:'#94a3b8',fontSize:9,textAlign:'right'}}>كود: {acc.code} | 💱 {acc.currency}</Text>
-                  </View>
-                  <View style={{alignItems:'flex-end',marginRight:4}}>
-                    <Text style={{color:(acc.balance||0)>=0?'#10B981':'#EF4444',fontSize:13,fontWeight:'bold'}}>{Math.abs(acc.balance||0).toLocaleString()} ﷼</Text>
-                    <View style={{backgroundColor:natureColor+'20',paddingHorizontal:6,paddingVertical:2,borderRadius:6,marginTop:2}}>
-                      <Text style={{color:natureColor,fontSize:9,fontWeight:'bold'}}>{nature}</Text>
-                    </View>
-                  </View>
-                  <TouchableOpacity style={{backgroundColor:'#10B98120',width:26,height:26,borderRadius:13,justifyContent:'center',alignItems:'center'}} onPress={()=>openAdd(acc.id,acc.name,acc.type)}>
-                    <Text style={{color:'#10B981',fontSize:14,fontWeight:'bold'}}>+</Text>
-                  </TouchableOpacity>
+      <FlatList key={refreshKey} data={displayList} keyExtractor={(i,idx)=>i.data.id+idx}
+        renderItem={({item}) => {
+          const acc = item.data; const ml = (item.level-1)*22;
+          const nature = acc.isDebit !== 0 ? 'مدين' : 'دائن';
+          const natureColor = nature === 'مدين' ? '#10B981' : '#EF4444';
+          return (
+            <TouchableOpacity style={[item.level===1?st.l1:item.level===2?st.l2:st.l3, {marginLeft:ml, borderRightColor:item.color, borderRightWidth:item.level===1?5:item.level===2?3:2}]}
+              onPress={()=>openEdit(acc)} onLongPress={()=>handleDelete(acc)}>
+              <View style={{flexDirection:'row',alignItems:'center'}}>
+                <Text style={{fontSize:item.level===1?26:20}}>{ICONS[acc.name]||'📋'}</Text>
+                <View style={{flex:1,marginLeft:8}}>
+                  <Text style={{color:'#FFF',fontSize:item.level===1?15:13,fontWeight:'bold',textAlign:'right'}}>{acc.name}</Text>
+                  <Text style={{color:'#94a3b8',fontSize:9,textAlign:'right'}}>كود: {acc.code} | 💱 {acc.currency}</Text>
                 </View>
-              </TouchableOpacity>
-            );
-          }}
-          ListEmptyComponent={<View style={{alignItems:'center',marginTop:60}}><Text style={{fontSize:64}}>📚</Text><Text style={{color:'#666',fontSize:16}}>لا توجد حسابات</Text></View>}
-          contentContainerStyle={{padding:12}}
-        />
-      }
+                <View style={{alignItems:'flex-end',marginRight:4}}>
+                  <Text style={{color:(acc.balance||0)>=0?'#10B981':'#EF4444',fontSize:13,fontWeight:'bold'}}>{Math.abs(acc.balance||0).toLocaleString()} ﷼</Text>
+                  <View style={{backgroundColor:natureColor+'20',paddingHorizontal:6,paddingVertical:2,borderRadius:6,marginTop:2}}>
+                    <Text style={{color:natureColor,fontSize:9,fontWeight:'bold'}}>{nature}</Text>
+                  </View>
+                </View>
+                <TouchableOpacity style={{backgroundColor:'#10B98120',width:26,height:26,borderRadius:13,justifyContent:'center',alignItems:'center'}} onPress={()=>openAdd(acc.id,acc.name,acc.type)}>
+                  <Text style={{color:'#10B981',fontSize:14,fontWeight:'bold'}}>+</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          );
+        }}
+        ListEmptyComponent={<View style={{alignItems:'center',marginTop:60}}><Text style={{fontSize:64}}>📚</Text><Text style={{color:'#666',fontSize:16}}>لا توجد حسابات</Text></View>}
+        contentContainerStyle={{padding:12}}
+      />
       <Modal visible={showModal} animationType="slide" transparent>
         <View style={st.mo}><View style={st.mc}><View style={{flexDirection:'row',justifyContent:'space-between',padding:16,borderBottomWidth:1,borderBottomColor:'#2a3550'}}><Text style={{color:'#D4AF37',fontSize:16,fontWeight:'bold'}}>{editMode?'✏️ تعديل':formData.parentName?`➕ تحت: ${formData.parentName}`:'📁 حساب رئيسي'}</Text><TouchableOpacity onPress={()=>setShowModal(false)}><Text style={{color:'#EF4444',fontSize:22}}>✕</Text></TouchableOpacity></View>
         <ScrollView style={{padding:16}}>
           <Text style={st.fl}>الحساب الأب</Text>
-          <Selector label="" tableName="accounts" displayField="name" subField="code" selectedId={formData.parentId} selectedName={formData.parentName} onSelect={(i:any)=>setFormData({...formData,parentId:i.id,parentName:i.name,type:i.type})} placeholder="اختر الحساب الأب (اختياري)" />
+          <Selector label="" tableName="accounts" displayField="name" subField="code" selectedId={formData.parentId} selectedName={formData.parentName} onSelect={(i:any)=>setFormData({...formData,parentId:i.id,parentName:i.name,type:i.type})} placeholder="اختر الحساب الأب" />
 
           <Text style={st.fl}>اسم الحساب *</Text><TextInput style={st.fi} value={formData.name} onChangeText={v=>setFormData({...formData,name:v})} placeholder="اسم الحساب" placeholderTextColor="#666" />
           <Text style={st.fl}>الكود (تلقائي)</Text><TextInput style={[st.fi,{color:'#D4AF37'}]} value={formData.code||generateCode(formData.parentId||undefined)} editable={false} />
@@ -148,14 +168,42 @@ export default function AccountsScreen() {
             <View style={{flexDirection:'row',flexWrap:'wrap',gap:6}}>{types.filter(t=>t!=='الكل').map(t=><TouchableOpacity key={t} style={[st.tb,formData.type===t&&st.tba]} onPress={()=>setFormData({...formData,type:t})}><Text style={[st.tt,formData.type===t&&st.tta]}>{t}</Text></TouchableOpacity>)}</View>
           </>)}
 
-          <Text style={st.fl}>الطبيعة</Text>
-          <View style={{flexDirection:'row',gap:8}}>
-            <TouchableOpacity style={[st.tb,{flex:1},formData.isDebit&&st.tba]} onPress={()=>setFormData({...formData,isDebit:true})}><Text style={[st.tt,formData.isDebit&&st.tta]}>مدين</Text></TouchableOpacity>
-            <TouchableOpacity style={[st.tb,{flex:1},!formData.isDebit&&st.tba]} onPress={()=>setFormData({...formData,isDebit:false})}><Text style={[st.tt,!formData.isDebit&&st.tta]}>دائن</Text></TouchableOpacity>
-          </View>
+          <Text style={st.fl}>العملة</Text>
+          <Selector label="" tableName="currencies" displayField="code" subField="name" selectedId={formData.currency} selectedName={formData.currency} onSelect={(i:any)=>setFormData({...formData,currency:i.code})} />
 
-          <Text style={st.fl}>العملة</Text><TextInput style={st.fi} value={formData.currency} onChangeText={v=>setFormData({...formData,currency:v})} />
-          <Text style={st.fl}>الرصيد الافتتاحي</Text><TextInput style={st.fi} value={formData.balance} onChangeText={v=>setFormData({...formData,balance:v})} keyboardType="numeric" />
+          <Text style={st.fl}>الرصيد الافتتاحي</Text>
+          <TextInput style={st.fi} value={formData.balance} onChangeText={v => {
+            const show = parseFloat(v) > 0;
+            setFormData({...formData, balance: v, showDebitCredit: show});
+          }} keyboardType="numeric" placeholder="0" placeholderTextColor="#666" />
+
+          {/* ✅ يظهر مدين/دائن فقط إذا الرصيد > 0 */}
+          {formData.showDebitCredit && (
+            <>
+              <Text style={[st.fl, {color: '#D4AF37'}]}>⚠️ طبيعة الرصيد الافتتاحي</Text>
+              <View style={{flexDirection:'row',gap:8}}>
+                <TouchableOpacity style={[st.tb,{flex:1},formData.isDebit&&st.tba]} onPress={()=>setFormData({...formData,isDebit:true})}>
+                  <Text style={[st.tt,formData.isDebit&&st.tta]}>مدين</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[st.tb,{flex:1},!formData.isDebit&&st.tba]} onPress={()=>setFormData({...formData,isDebit:false})}>
+                  <Text style={[st.tt,!formData.isDebit&&st.tta]}>دائن</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={st.hint}>
+                {formData.isDebit 
+                  ? `سيتم إضافة ${parseFloat(formData.balance||'0').toLocaleString()} ${formData.currency} كمدين` 
+                  : `سيتم إضافة ${parseFloat(formData.balance||'0').toLocaleString()} ${formData.currency} كدائن`}
+              </Text>
+            </>
+          )}
+
+          {(formData.name.includes('بنك') || formData.parentName?.includes('بنك')) && (
+            <><Text style={st.fl}>🏦 رقم الحساب البنكي</Text><TextInput style={st.fi} value={formData.bankAccount} onChangeText={v=>setFormData({...formData,bankAccount:v})} placeholder="رقم الحساب" placeholderTextColor="#666" /></>
+          )}
+          {(formData.name.includes('محفظ') || formData.parentName?.includes('محفظ')) && (
+            <><Text style={st.fl}>📱 رقم الهاتف</Text><TextInput style={st.fi} value={formData.walletPhone} onChangeText={v=>setFormData({...formData,walletPhone:v})} placeholder="رقم الجوال" placeholderTextColor="#666" keyboardType="phone-pad" /></>
+          )}
+
           <Text style={st.fl}>ملاحظات</Text><TextInput style={[st.fi,{height:60}]} value={formData.notes} onChangeText={v=>setFormData({...formData,notes:v})} multiline />
 
           <TouchableOpacity style={st.sb} onPress={handleSave}><Text style={st.sbt}>💾 {editMode?'تحديث':'حفظ'}</Text></TouchableOpacity>
@@ -173,5 +221,6 @@ const st = StyleSheet.create({
   mo:{flex:1,backgroundColor:'rgba(0,0,0,0.7)',justifyContent:'flex-end'},mc:{backgroundColor:'#16213E',borderTopLeftRadius:20,borderTopRightRadius:20,maxHeight:'90%'},
   fl:{color:'#94a3b8',fontSize:13,marginBottom:6,marginTop:12},fi:{backgroundColor:'#0A1128',borderRadius:10,padding:12,color:'#FFF',borderWidth:1,borderColor:'#2a3550',fontSize:14,textAlign:'right'},
   tb:{paddingVertical:8,paddingHorizontal:14,borderRadius:8,backgroundColor:'#0A1128',borderWidth:1,borderColor:'#2a3550'},tba:{borderColor:'#D4AF37',backgroundColor:'#D4AF3720'},tt:{color:'#94a3b8',fontSize:12},tta:{color:'#D4AF37',fontWeight:'bold'},
+  hint:{color:'#D4AF37',fontSize:11,textAlign:'center',marginTop:6},
   sb:{backgroundColor:'#D4AF37',borderRadius:12,padding:14,alignItems:'center',marginTop:20,marginBottom:20},sbt:{color:'#0A1128',fontSize:16,fontWeight:'bold'},
 });

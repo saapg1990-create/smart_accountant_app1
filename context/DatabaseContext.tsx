@@ -30,7 +30,11 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function useDatabase() { return useContext(DatabaseContext); }
+export function useDatabase() {
+  const ctx = useContext(DatabaseContext);
+  if (!ctx || !ctx.db) return { db: null, loading: true };
+  return ctx;
+}
 
 async function createAllTables(db: SQLite.SQLiteDatabase) {
   // 1. دليل الحسابات
@@ -39,8 +43,8 @@ async function createAllTables(db: SQLite.SQLiteDatabase) {
     parentId TEXT DEFAULT '', currency TEXT DEFAULT 'YER',
     balance REAL DEFAULT 0, isDebit INTEGER DEFAULT 1,
     isActive INTEGER DEFAULT 1,
-    bankAccount TEXT DEFAULT '', walletPhone TEXT DEFAULT '', notes TEXT DEFAULT '',
-    createdAt TEXT DEFAULT (datetime('now'))
+    bankAccount TEXT DEFAULT '', walletPhone TEXT DEFAULT '',
+    notes TEXT DEFAULT '', createdAt TEXT DEFAULT (datetime('now'))
   )`);
 
   // 2. العملات
@@ -52,43 +56,47 @@ async function createAllTables(db: SQLite.SQLiteDatabase) {
   // 3. السندات
   await db.execAsync(`CREATE TABLE IF NOT EXISTS vouchers (
     id TEXT PRIMARY KEY, number TEXT, type TEXT, voucherType TEXT,
-    date TEXT, sourceName TEXT, accountName TEXT,
-    amount REAL DEFAULT 0, total REAL DEFAULT 0,
-    description TEXT DEFAULT '', refNumber TEXT DEFAULT '',
+    date TEXT, sourceId TEXT, sourceName TEXT,
+    accountId TEXT, accountName TEXT,
+    amount REAL DEFAULT 0, localAmount REAL DEFAULT 0,
     currency TEXT DEFAULT 'YER', exchangeRate REAL DEFAULT 1,
-    localAmount REAL DEFAULT 0, status TEXT DEFAULT 'posted'
+    description TEXT DEFAULT '', refNumber TEXT DEFAULT '',
+    status TEXT DEFAULT 'posted', createdAt TEXT DEFAULT (datetime('now'))
   )`);
 
   // 4. فواتير المبيعات
   await db.execAsync(`CREATE TABLE IF NOT EXISTS salesInvoices (
     id TEXT PRIMARY KEY, number TEXT, date TEXT,
-    customerId TEXT, customerName TEXT,
+    customerId TEXT, customerName TEXT, cashId TEXT, cashName TEXT,
+    warehouseId TEXT, warehouseName TEXT,
     type TEXT DEFAULT 'cash', subtotal REAL DEFAULT 0,
     discount REAL DEFAULT 0, tax REAL DEFAULT 0,
-    total REAL DEFAULT 0, paid REAL DEFAULT 0,
-    remaining REAL DEFAULT 0, status TEXT DEFAULT 'posted',
-    currency TEXT DEFAULT 'YER', exchangeRate REAL DEFAULT 1
+    total REAL DEFAULT 0, paid REAL DEFAULT 0, remaining REAL DEFAULT 0,
+    currency TEXT DEFAULT 'YER', exchangeRate REAL DEFAULT 1,
+    description TEXT DEFAULT '', status TEXT DEFAULT 'posted',
+    createdAt TEXT DEFAULT (datetime('now'))
   )`);
 
   // 5. فواتير المشتريات
   await db.execAsync(`CREATE TABLE IF NOT EXISTS purchaseInvoices (
     id TEXT PRIMARY KEY, number TEXT, date TEXT,
-    supplierId TEXT, supplierName TEXT,
+    supplierId TEXT, supplierName TEXT, cashId TEXT, cashName TEXT,
+    warehouseId TEXT, warehouseName TEXT,
     type TEXT DEFAULT 'cash', subtotal REAL DEFAULT 0,
     discount REAL DEFAULT 0, total REAL DEFAULT 0,
     paid REAL DEFAULT 0, remaining REAL DEFAULT 0,
-    status TEXT DEFAULT 'posted',
-    currency TEXT DEFAULT 'YER', exchangeRate REAL DEFAULT 1
+    currency TEXT DEFAULT 'YER', exchangeRate REAL DEFAULT 1,
+    description TEXT DEFAULT '', status TEXT DEFAULT 'posted',
+    createdAt TEXT DEFAULT (datetime('now'))
   )`);
 
   // 6. القيود المحاسبية
   await db.execAsync(`CREATE TABLE IF NOT EXISTS journal_entries (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     number TEXT, date TEXT, description TEXT, type TEXT,
-    source_type TEXT, source_id TEXT,
     currency TEXT DEFAULT 'YER', exchange_rate REAL DEFAULT 1,
     original_amount REAL DEFAULT 0, base_amount REAL DEFAULT 0,
-    status TEXT DEFAULT 'posted'
+    status TEXT DEFAULT 'posted', created_at TEXT DEFAULT (datetime('now'))
   )`);
   await db.execAsync(`CREATE TABLE IF NOT EXISTS journal_details (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -101,48 +109,92 @@ async function createAllTables(db: SQLite.SQLiteDatabase) {
 
   // 7. العملاء والموردين
   await db.execAsync(`CREATE TABLE IF NOT EXISTS customers (
-    id TEXT PRIMARY KEY, name TEXT, phone TEXT, address TEXT,
-    balance REAL DEFAULT 0, creditLimit REAL DEFAULT 0
+    id TEXT PRIMARY KEY, name TEXT NOT NULL, phone TEXT DEFAULT '',
+    address TEXT DEFAULT '', balance REAL DEFAULT 0,
+    creditLimit REAL DEFAULT 0, groupId TEXT DEFAULT '',
+    currency TEXT DEFAULT 'YER', createdAt TEXT DEFAULT (datetime('now'))
   )`);
   await db.execAsync(`CREATE TABLE IF NOT EXISTS suppliers (
-    id TEXT PRIMARY KEY, name TEXT, phone TEXT, address TEXT,
-    balance REAL DEFAULT 0
+    id TEXT PRIMARY KEY, name TEXT NOT NULL, phone TEXT DEFAULT '',
+    address TEXT DEFAULT '', balance REAL DEFAULT 0,
+    creditLimit REAL DEFAULT 0, currency TEXT DEFAULT 'YER',
+    createdAt TEXT DEFAULT (datetime('now'))
   )`);
 
   // 8. المخازن والأصناف
   await db.execAsync(`CREATE TABLE IF NOT EXISTS warehouses (
-    id TEXT PRIMARY KEY, name TEXT, location TEXT DEFAULT ''
+    id TEXT PRIMARY KEY, name TEXT NOT NULL, location TEXT DEFAULT '',
+    createdAt TEXT DEFAULT (datetime('now'))
   )`);
   await db.execAsync(`CREATE TABLE IF NOT EXISTS items (
-    id TEXT PRIMARY KEY, name TEXT, code TEXT,
+    id TEXT PRIMARY KEY, name TEXT NOT NULL, code TEXT DEFAULT '',
     unit TEXT DEFAULT 'حبة', cost REAL DEFAULT 0, price REAL DEFAULT 0,
     quantity REAL DEFAULT 0, minQuantity REAL DEFAULT 0,
-    categoryId TEXT, brandId TEXT
+    categoryId TEXT, brandId TEXT, warehouseId TEXT,
+    createdAt TEXT DEFAULT (datetime('now'))
   )`);
 
   // 9. وحدات وفئات وعلامات
-  await db.execAsync(`CREATE TABLE IF NOT EXISTS units (id TEXT PRIMARY KEY, name TEXT)`);
-  await db.execAsync(`CREATE TABLE IF NOT EXISTS categories (id TEXT PRIMARY KEY, name TEXT)`);
-  await db.execAsync(`CREATE TABLE IF NOT EXISTS brands (id TEXT PRIMARY KEY, name TEXT)`);
+  await db.execAsync(`CREATE TABLE IF NOT EXISTS units (id TEXT PRIMARY KEY, name TEXT NOT NULL)`);
+  await db.execAsync(`CREATE TABLE IF NOT EXISTS categories (id TEXT PRIMARY KEY, name TEXT NOT NULL)`);
+  await db.execAsync(`CREATE TABLE IF NOT EXISTS brands (id TEXT PRIMARY KEY, name TEXT NOT NULL)`);
 
-  // 10. المندوبين والإعدادات والإشعارات
+  // 10. المندوبين
   await db.execAsync(`CREATE TABLE IF NOT EXISTS salesReps (
-    id TEXT PRIMARY KEY, name TEXT, phone TEXT DEFAULT '',
-    monthlyTarget REAL DEFAULT 0, totalSales REAL DEFAULT 0
+    id TEXT PRIMARY KEY, name TEXT NOT NULL, phone TEXT DEFAULT '',
+    monthlyTarget REAL DEFAULT 0, totalSales REAL DEFAULT 0,
+    createdAt TEXT DEFAULT (datetime('now'))
   )`);
+
+  // 11. الإعدادات والإشعارات
   await db.execAsync(`CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)`);
   await db.execAsync(`CREATE TABLE IF NOT EXISTS notifications (
     id TEXT PRIMARY KEY, type TEXT, title TEXT, message TEXT,
     read INTEGER DEFAULT 0, createdAt TEXT DEFAULT (datetime('now'))
   )`);
 
-  console.log('✅ جميع الجداول (16 جدول) تم إنشاؤها');
+  // 12. العمليات المخزنية
+  await db.execAsync(`CREATE TABLE IF NOT EXISTS inventoryIssues (
+    id TEXT PRIMARY KEY, number TEXT, date TEXT,
+    warehouseId TEXT, warehouseName TEXT,
+    totalAmount REAL DEFAULT 0, notes TEXT DEFAULT '',
+    createdAt TEXT DEFAULT (datetime('now'))
+  )`);
+  await db.execAsync(`CREATE TABLE IF NOT EXISTS inventoryReceipts (
+    id TEXT PRIMARY KEY, number TEXT, date TEXT,
+    warehouseId TEXT, warehouseName TEXT,
+    totalAmount REAL DEFAULT 0, notes TEXT DEFAULT '',
+    createdAt TEXT DEFAULT (datetime('now'))
+  )`);
+  await db.execAsync(`CREATE TABLE IF NOT EXISTS warehouseTransfers (
+    id TEXT PRIMARY KEY, number TEXT, date TEXT,
+    fromWarehouseId TEXT, fromWarehouseName TEXT,
+    toWarehouseId TEXT, toWarehouseName TEXT,
+    totalAmount REAL DEFAULT 0, notes TEXT DEFAULT '',
+    createdAt TEXT DEFAULT (datetime('now'))
+  )`);
+
+  // 13. مردودات
+  await db.execAsync(`CREATE TABLE IF NOT EXISTS salesReturns (
+    id TEXT PRIMARY KEY, number TEXT, date TEXT,
+    customerId TEXT, customerName TEXT,
+    totalAmount REAL DEFAULT 0, reason TEXT DEFAULT '',
+    createdAt TEXT DEFAULT (datetime('now'))
+  )`);
+  await db.execAsync(`CREATE TABLE IF NOT EXISTS purchaseReturns (
+    id TEXT PRIMARY KEY, number TEXT, date TEXT,
+    supplierId TEXT, supplierName TEXT,
+    totalAmount REAL DEFAULT 0, reason TEXT DEFAULT '',
+    createdAt TEXT DEFAULT (datetime('now'))
+  )`);
+
+  console.log('✅ 23 جدول تم إنشاؤها');
 }
 
 async function seedAllData(db: SQLite.SQLiteDatabase) {
-  // 51 حساب حسب القانون اليمني
+  // 51 حساب يمني
   const accCount = await db.getFirstAsync("SELECT COUNT(*) as c FROM accounts WHERE isActive=1") as any;
-  if (accCount?.c < 5) {
+  if (accCount?.c < 10) {
     const accounts = [
       { id:'1', code:'1', name:'الأصول', type:'أصل', parentId:'', isDebit:1 },
       { id:'11', code:'11', name:'الأصول المتداولة', type:'أصل', parentId:'1', isDebit:1 },
@@ -200,17 +252,17 @@ async function seedAllData(db: SQLite.SQLiteDatabase) {
     for (const acc of accounts) {
       await db.runAsync('INSERT OR IGNORE INTO accounts (id, code, name, type, parentId, isDebit, balance, isActive) VALUES (?,?,?,?,?,?,0,1)', [acc.id, acc.code, acc.name, acc.type, acc.parentId, acc.isDebit]);
     }
+    console.log('✅ 51 حساب');
   }
 
-  // 3 عملات افتراضية
+  // 3 عملات
   const curCount = await db.getFirstAsync("SELECT COUNT(*) as c FROM currencies") as any;
   if (curCount?.c === 0) {
     await db.runAsync("INSERT INTO currencies (id, code, name, symbol, rate, isDefault) VALUES (?,?,?,?,?,?)", ['c1','YER','ريال يمني','﷼',1,1]);
     await db.runAsync("INSERT INTO currencies (id, code, name, symbol, rate, isDefault) VALUES (?,?,?,?,?,?)", ['c2','USD','دولار أمريكي','$',530,0]);
     await db.runAsync("INSERT INTO currencies (id, code, name, symbol, rate, isDefault) VALUES (?,?,?,?,?,?)", ['c3','SAR','ريال سعودي','﷼',141,0]);
+    console.log('✅ 3 عملات');
   }
-
-  console.log('✅ 51 حساب + 3 عملات');
 }
 
 export default DatabaseContext;
