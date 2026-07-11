@@ -5,16 +5,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAccountStore } from '../../src/store/useAccountStore';
 import { Selector } from '../../src/components/common/Selector';
 import { ControlButtons, ControlHeader } from '../../src/components/ui/ControlButtons';
-
 const ICONS: any = {
   'الأصول':'🏢','الخصوم':'💳','حقوق الملكية':'👑','الإيرادات':'💰','المصروفات':'💸',
   'الصندوق':'💵','البنوك':'🏦','المحافظ':'📱','العملاء':'👥','المخزون':'📦','الموردين':'🏭'
 };
-
 export default function AccountsScreen() {
   const router = useRouter(); const insets = useSafeAreaInsets();
   const { accounts, loadAccounts, addAccount, updateAccount, removeAccount, getMainAccounts, getSubAccounts, generateCode } = useAccountStore();
-  
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState('الكل');
   const [showModal, setShowModal] = useState(false);
@@ -24,26 +21,20 @@ export default function AccountsScreen() {
     name: '', code: '', type: 'أصل', parentId: '', parentName: '',
     bankAccount: '', walletPhone: '', notes: ''
   });
-  
   // ✅ أرصدة متعددة
   const [balances, setBalances] = useState([
     { currency: 'YER', balance: '0', isDebit: true }
   ]);
-  
   const [refreshKey, setRefreshKey] = useState(0);
   const types = ['الكل', 'أصل', 'خصم', 'إيراد', 'مصروف', 'ملكية'];
-
   useFocusEffect(useCallback(() => { loadAccounts(); }, []));
-
   const getColor = (t: string) => ({ 'أصل':'#D4AF37','خصم':'#EF4444','ملكية':'#F59E0B','إيراد':'#10B981','مصروف':'#3B82F6' }[t] || '#6B7280');
-
   const openAdd = (parentId='', parentName='', parentType='أصل') => {
     setEditMode(false); setEditingId(null);
     setFormData({ name:'', code:'', type:parentType, parentId, parentName, bankAccount:'', walletPhone:'', notes:'' });
     setBalances([{ currency: 'YER', balance: '0', isDebit: true }]);
     setShowModal(true);
   };
-
   const openEdit = (acc: any) => {
     setEditMode(true); setEditingId(acc.id);
     const parent = accounts.find((a:any) => a.id === acc.parentId);
@@ -55,35 +46,27 @@ export default function AccountsScreen() {
     setBalances([{ currency: acc.currency || 'YER', balance: String(Math.abs(acc.balance||0)), isDebit: (acc.balance||0) >= 0 }]);
     setShowModal(true);
   };
-
   const addBalanceRow = () => {
     setBalances([...balances, { currency: 'YER', balance: '0', isDebit: true }]);
   };
-
   const updateBalance = (index: number, field: string, value: any) => {
     const newBalances = [...balances];
     newBalances[index] = { ...newBalances[index], [field]: value };
     setBalances(newBalances);
   };
-
   const handleDelete = (acc: any) => {
     const subs = accounts.filter((a: any) => a.parentId === acc.id);
     if (subs.length > 0) { Alert.alert('تنبيه', 'لا يمكن حذف حساب له فروع'); return; }
     Alert.alert('حذف', `حذف "${acc.name}"؟`, [{ text: 'إلغاء' }, { text: 'حذف', onPress: () => removeAccount(acc.id) }]);
   };
-
   const handleSave = async () => {
     if (!formData.name.trim()) { Alert.alert('خطأ', 'أدخل اسم الحساب'); return; }
-    
     const code = formData.code || generateCode(formData.parentId || undefined);
-    
     // ✅ إضافة الحساب
     const result = await addAccount({
       ...formData, code, isDebit: 1
     });
-    
     if (!result.success) { Alert.alert('تنبيه', result.error); return; }
-    
     // ✅ إضافة الأرصدة
     const { addBalance } = useAccountStore.getState();
     for (const bal of balances) {
@@ -93,14 +76,11 @@ export default function AccountsScreen() {
         await addBalance(result.id!, bal.currency, Math.abs(finalBalance));
       }
     }
-    
     setShowModal(false);
     setTimeout(() => { loadAccounts(); setRefreshKey(prev => prev + 1); }, 300);
   };
-
   const mainAccounts = getMainAccounts().filter((m: any) => selectedType === 'الكل' || m.type === selectedType);
   const displayList: any[] = [];
-
   const addChildren = (parentId: string, level: number) => {
     const children = accounts.filter((a: any) => a.parentId === parentId && a.isActive !== 0);
     children.forEach((child: any) => {
@@ -109,13 +89,11 @@ export default function AccountsScreen() {
       addChildren(child.id, level + 1);
     });
   };
-
   mainAccounts.forEach((main: any) => {
     if (searchQuery && !main.name.includes(searchQuery) && !main.code.includes(searchQuery)) return;
     displayList.push({ level: 1, data: main, color: getColor(main.type) });
     addChildren(main.id, 2);
   });
-
   return (
     <View style={[st.c, { paddingTop: insets.top }]}><StatusBar barStyle="light-content" />
       <ControlHeader title="دليل الحسابات" count={accounts.length} onBack={() => router.back()} onAdd={() => openAdd()} />
@@ -164,22 +142,20 @@ export default function AccountsScreen() {
         <ScrollView style={{padding:16}}>
           <Text style={st.fl}>الحساب الأب</Text>
           <Selector label="" tableName="accounts" displayField="name" subField="code" selectedId={formData.parentId} selectedName={formData.parentName} onSelect={(i:any)=>setFormData({...formData,parentId:i.id,parentName:i.name,type:i.type})} placeholder="اختر الحساب الأب" />
-
           <Text style={st.fl}>اسم الحساب *</Text><TextInput style={st.fi} value={formData.name} onChangeText={v=>setFormData({...formData,name:v})} placeholder="اسم الحساب" placeholderTextColor="#666" />
           <Text style={st.fl}>الكود (تلقائي)</Text><TextInput style={[st.fi,{color:'#D4AF37'}]} value={formData.code||generateCode(formData.parentId||undefined)} editable={false} />
-
           {!formData.parentId && (<>
             <Text style={st.fl}>النوع</Text>
             <View style={{flexDirection:'row',flexWrap:'wrap',gap:6}}>{types.filter(t=>t!=='الكل').map(t=><TouchableOpacity key={t} style={[st.tb,formData.type===t&&st.tba]} onPress={()=>setFormData({...formData,type:t})}><Text style={[st.tt,formData.type===t&&st.tta]}>{t}</Text></TouchableOpacity>)}</View>
           </>)}
-
           {/* ✅ الأرصدة المتعددة */}
           <Text style={[st.fl, {color: '#D4AF37', fontSize: 15, marginTop: 16}]}>💱 الأرصدة الافتتاحية</Text>
           {balances.map((bal, index) => (
             <View key={index} style={{backgroundColor: '#0A1128', borderRadius: 10, padding: 10, marginBottom: 8, borderWidth: 1, borderColor: '#2a3550'}}>
               <View style={{flexDirection: 'row', gap: 8, alignItems: 'center'}}>
                 <View style={{flex: 1}}>
-                  <Text style={{color: '#94a3b8', fontSize: 10}}>العملة</Text>
+                  <Text style={{color: "#94a3b8", fontSize: 10}}>العملة</Text>
+                  <Selector label="" tableName="currencies" displayField="code" subField="name" selectedId={bal.currency} selectedName={bal.currency} onSelect={(i: any) => updateBalance(index, "currency", i.code)} />
                   <TextInput style={[st.fi, {fontSize: 13}]} value={bal.currency} onChangeText={v => updateBalance(index, 'currency', v)} placeholder="YER" placeholderTextColor="#666" />
                 </View>
                 <View style={{flex: 1}}>
@@ -200,16 +176,13 @@ export default function AccountsScreen() {
           <TouchableOpacity style={{backgroundColor: '#D4AF3720', padding: 10, borderRadius: 8, alignItems: 'center', marginTop: 4}} onPress={addBalanceRow}>
             <Text style={{color: '#D4AF37'}}>+ إضافة رصيد بعملة أخرى</Text>
           </TouchableOpacity>
-
           {(formData.name.includes('بنك') || formData.parentName?.includes('بنك')) && (
             <><Text style={st.fl}>🏦 رقم الحساب البنكي</Text><TextInput style={st.fi} value={formData.bankAccount} onChangeText={v=>setFormData({...formData,bankAccount:v})} placeholder="رقم الحساب" placeholderTextColor="#666" /></>
           )}
           {(formData.name.includes('محفظ') || formData.parentName?.includes('محفظ')) && (
             <><Text style={st.fl}>📱 رقم الهاتف</Text><TextInput style={st.fi} value={formData.walletPhone} onChangeText={v=>setFormData({...formData,walletPhone:v})} placeholder="رقم الجوال" placeholderTextColor="#666" keyboardType="phone-pad" /></>
           )}
-
           <Text style={st.fl}>ملاحظات</Text><TextInput style={[st.fi,{height:60}]} value={formData.notes} onChangeText={v=>setFormData({...formData,notes:v})} multiline />
-
           <TouchableOpacity style={st.sb} onPress={handleSave}><Text style={st.sbt}>💾 {editMode?'تحديث':'حفظ'}</Text></TouchableOpacity>
         </ScrollView></View></View>
       </Modal>
